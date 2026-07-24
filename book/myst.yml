@@ -16,6 +16,9 @@ project:
       children:
         - file: notebooks/05_forecast_overview.ipynb
         - file: notebooks/06_validation_report.ipynb
+    - title: Temporal downscaling
+      children:
+        - file: notebooks/09_downscaling_overview.ipynb
     - title: Diagnostic model
       children:
         - file: notebooks/07_diagnostic_solar_radiation.ipynb

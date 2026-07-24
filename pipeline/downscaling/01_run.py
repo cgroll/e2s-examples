@@ -23,7 +23,7 @@ from earth2studio.models.px import SFNO, InterpModAFNO
 from earth2studio.data import GFS
 from earth2studio.io import ZarrBackend
 from earth2studio.run import ensemble as run_ensemble
-from earth2studio.perturbation import Zero
+from earth2studio.perturbation import Brown
 
 from e2s.paths import ProjPaths
 
@@ -55,9 +55,11 @@ def _get_model_compat(params, *args, **kwargs):
 
 _makani_model_registry.get_model = _get_model_compat
 
-N_ENSEMBLE = 8
+N_ENSEMBLE = 5  # fewer than the main ensemble's 8 - batch_size=1 below forces
+# members to run sequentially, so each additional member is proportionally
+# more expensive here than in pipeline/ensemble/01_run.py's batched runs.
 N_HOURLY_STEPS = 24  # 1h steps -> 24 = one day of hourly forecast
-START_DATE = "2026-07-23T00:00:00"
+START_DATE = "2026-07-23T00:00:00"  # UTC - GFS timestamps are always UTC
 # InterpModAFNO's interpolation step appears to not broadcast its zenith-time
 # modulation embedding across a batch >1 (RuntimeError: scale tensor has
 # half the expected elements at batch_size=2) - run members one at a time
@@ -83,7 +85,19 @@ zarr_path = paths.downscaling_zarr_path
 io = ZarrBackend(str(zarr_path))
 
 # 4. Define the Perturbation Method
-perturbation = Zero()
+#
+# Unlike FCN3 (pipeline/ensemble/01_run.py), which is itself a
+# probabilistic model with internal stochasticity - Zero() perturbation
+# still produces member-to-member spread there - SFNO is a plain
+# deterministic network, and InterpModAFNO's interpolation is
+# deterministic too. Zero() here would give every "member" a bit-
+# identical trajectory (this is what actually happened before this
+# comment was added: the Munich meteogram collapsed to zero-height boxes
+# - no spread to show, and consequently no visible native/interpolated
+# highlight color either, since there was no box area to color). Brown
+# noise on the IC is what actually creates ensemble spread for a
+# deterministic base model.
+perturbation = Brown(noise_amplitude=0.05)
 
 # 5. Execute ensemble forecast at 1h resolution
 print("Running SFNO + InterpModAFNO ensemble on GPU...")

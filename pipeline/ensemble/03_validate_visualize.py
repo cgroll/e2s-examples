@@ -151,7 +151,7 @@ def plot_cross_time_check(sub, out_path):
         handles.append(plt.Line2D([0], [0], marker="o", linestyle="none", color=COLOR_INVALID, label="Flagged step"))
 
     ax.legend(handles=handles, loc="best")
-    ax.set_xlabel("Lead time (hours)")
+    ax.set_xlabel("Lead time (hours since UTC init)")
     ax.set_ylabel(ylabel)
     ax.set_title(f"Cross-time consistency: {check_name}")
     ax.grid(True, color="#DDDDDD", linewidth=0.6)
@@ -170,7 +170,7 @@ def plot_cross_ensemble_spread(sub, out_path):
         ax.scatter(invalid["lead_time_hours"], invalid["spread"], color=COLOR_INVALID, s=24, zorder=5, label="Flagged")
         ax.legend(loc="best")
 
-    ax.set_xlabel("Lead time (hours)")
+    ax.set_xlabel("Lead time (hours since UTC init)")
     ax.set_ylabel("Std dev across ensemble")
     ax.set_title(f"Cross-ensemble consistency: {check_name}")
     ax.grid(True, color="#DDDDDD", linewidth=0.6)

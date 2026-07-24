@@ -49,7 +49,7 @@ def _get_model_compat(params, *args, **kwargs):
 _makani_model_registry.get_model = _get_model_compat
 
 N_STEPS = 12  # 6h-native steps -> 12 = 3 days
-START_DATE = "2026-07-23T00:00:00"
+START_DATE = "2026-07-23T00:00:00"  # UTC - GFS timestamps are always UTC
 
 # 1. Load the prognostic model
 print("Loading SFNO model weights...")

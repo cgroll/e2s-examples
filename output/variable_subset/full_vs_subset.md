@@ -4,11 +4,11 @@ nensemble=2, nsteps=4
 
 | Run | # variables | Wall time (s) | Zarr size (MB) |
 |-----|-------------|----------------|-----------------|
-| Full | 72 | 59.5 | 2990.2 |
-| Subset | 4 | 19.7 | 166.1 |
+| Full | 72 | 57.8 | 2990.2 |
+| Subset | 4 | 19.6 | 166.1 |
 
 Storage ratio (subset/full): 0.056
-Time ratio (subset/full): 0.332
+Time ratio (subset/full): 0.339
 
 Model compute per step is unchanged either way (confirmed by reading
 run.ensemble's source - see this script's docstring). If the time ratio

@@ -8,11 +8,41 @@
 # install step.
 
 stages:
+  # Neither germany stage is a dep of ensemble_analyse/downscaling_analyse
+  # on purpose: germany_download_mask currently fakes its output (see
+  # pipeline/germany/01_run.py's USE_FAKE_MASK) rather than requiring the
+  # CDS account/API key it'll eventually need, but even once real, wiring
+  # germany_build_mask as a hard `deps:` entry there would break those
+  # stages (and any `dvc repro`) the moment this file doesn't exist, since
+  # DVC errors on a missing dependency file rather than skipping it.
+  # Instead, 04_analyse.py/02_analyse.py check for it at runtime via
+  # e2s.validation.load_germany_weights() and print a [WARN] + skip the
+  # Germany section if it's absent. Once built (or rebuilt with real
+  # data), force those stages to pick it up with `dvc repro -f
+  # ensemble_analyse downscaling_analyse` (DVC won't notice the new/
+  # changed file on its own, since it's not a tracked dependency).
+  germany_download_mask:
+    cmd: PYTHONPATH=. \${E2S_PYTHON:-/root/earth2studio-project/.venv/bin/python} pipeline/germany/01_run.py
+    deps:
+      - pipeline/germany/01_run.py
+    outs:
+      - data/germany/pecd_population_mask_raw.nc:
+          persist: true
+
+  germany_build_mask:
+    cmd: PYTHONPATH=. \${E2S_PYTHON:-/root/earth2studio-project/.venv/bin/python} pipeline/germany/02_build_germany_mask.py
+    deps:
+      - pipeline/germany/02_build_germany_mask.py
+      - data/germany/pecd_population_mask_raw.nc
+      - data/ensemble/fcn3_ensemble.zarr
+    outs:
+      - data/germany/germany_population_mask.nc:
+          persist: true
+
   ensemble_run:
     cmd: PYTHONPATH=. \${E2S_PYTHON:-/root/earth2studio-project/.venv/bin/python} pipeline/ensemble/01_run.py
     deps:
       - pipeline/ensemble/01_run.py
-      - e2s/paths.py
     outs:
       - data/ensemble/fcn3_ensemble.zarr:
           persist: true
@@ -24,7 +54,6 @@ stages:
     deps:
       - pipeline/ensemble/02_validate.py
       - pipeline/ensemble/03_validate_visualize.py
-      - e2s/paths.py
       - e2s/validation.py
       - data/ensemble/fcn3_ensemble.zarr
     outs:
@@ -35,7 +64,6 @@ stages:
     cmd: PYTHONPATH=. \${E2S_PYTHON:-/root/earth2studio-project/.venv/bin/python} pipeline/ensemble/04_analyse.py
     deps:
       - pipeline/ensemble/04_analyse.py
-      - e2s/paths.py
       - e2s/validation.py
       - data/ensemble/fcn3_ensemble.zarr
     outs:
@@ -54,7 +82,6 @@ stages:
     deps:
       - pipeline/ensemble/05_forecast_overview.py
       - pipeline/_strip_jupytext_metadata.py
-      - e2s/paths.py
       - e2s/validation.py
       - data/ensemble/fcn3_ensemble.zarr
       - data/ensemble/gifs
@@ -65,6 +92,14 @@ stages:
       - output/ensemble/book/spaghetti_t2m_munich.png:
           cache: false
       - output/ensemble/book/t2m_robinson_member00.gif:
+          cache: false
+      - output/ensemble/book/t2m_robinson_member01.gif:
+          cache: false
+      - output/ensemble/book/wind10m_robinson_member00.gif:
+          cache: false
+      - output/ensemble/book/z500_robinson_member00.gif:
+          cache: false
+      - output/ensemble/book/t2m_std_robinson.gif:
           cache: false
 
   ensemble_book_validation_report:
@@ -78,7 +113,6 @@ stages:
     deps:
       - pipeline/ensemble/06_validation_report.py
       - pipeline/_strip_jupytext_metadata.py
-      - e2s/paths.py
       - output/ensemble/validation
     outs:
       - book/notebooks/06_validation_report.ipynb:
@@ -88,16 +122,51 @@ stages:
     cmd: PYTHONPATH=. \${E2S_PYTHON:-/root/earth2studio-project/.venv/bin/python} pipeline/downscaling/01_run.py
     deps:
       - pipeline/downscaling/01_run.py
-      - e2s/paths.py
     outs:
       - data/downscaling/sfno_downscaled.zarr:
           persist: true
+
+  downscaling_analyse:
+    cmd: PYTHONPATH=. \${E2S_PYTHON:-/root/earth2studio-project/.venv/bin/python} pipeline/downscaling/02_analyse.py
+    deps:
+      - pipeline/downscaling/02_analyse.py
+      - e2s/validation.py
+      - data/downscaling/sfno_downscaled.zarr
+    outs:
+      - output/downscaling/analysis:
+          cache: false
+      - data/downscaling/gifs
+
+  downscaling_book_overview:
+    cmd: >-
+      MPLBACKEND=Agg PYTHONPATH=$(pwd) uv run jupytext --to notebook --execute
+      --set-kernel e2s-gpu
+      --output book/notebooks/09_downscaling_overview.ipynb
+      pipeline/downscaling/03_forecast_overview.py &&
+      uv run python pipeline/_strip_jupytext_metadata.py
+      book/notebooks/09_downscaling_overview.ipynb
+    deps:
+      - pipeline/downscaling/03_forecast_overview.py
+      - pipeline/_strip_jupytext_metadata.py
+      - data/downscaling/gifs
+      - output/downscaling/analysis/meteogram_t2m_munich_dense.png
+      - output/downscaling/analysis/meteogram_t2m_munich_native.png
+    outs:
+      - book/notebooks/09_downscaling_overview.ipynb:
+          cache: false
+      - output/downscaling/book/meteogram_t2m_munich_dense.png:
+          cache: false
+      - output/downscaling/book/meteogram_t2m_munich_native.png:
+          cache: false
+      - output/downscaling/book/t2m_robinson_dense_member00.gif:
+          cache: false
+      - output/downscaling/book/t2m_robinson_native_member00.gif:
+          cache: false
 
   variable_subset_compare:
     cmd: PYTHONPATH=. \${E2S_PYTHON:-/root/earth2studio-project/.venv/bin/python} pipeline/variable_subset/01_compare_full_vs_subset.py
     deps:
       - pipeline/variable_subset/01_compare_full_vs_subset.py
-      - e2s/paths.py
     outs:
       - output/variable_subset/full_vs_subset.md:
           cache: false
@@ -108,7 +177,6 @@ stages:
     cmd: PYTHONPATH=. \${E2S_PYTHON:-/root/earth2studio-project/.venv/bin/python} pipeline/diagnostic/01_run_solar_radiation.py
     deps:
       - pipeline/diagnostic/01_run_solar_radiation.py
-      - e2s/paths.py
     outs:
       - data/diagnostic/fcn3_diagnostic.zarr:
           persist: true
@@ -124,7 +192,6 @@ stages:
     deps:
       - pipeline/diagnostic/02_analyse.py
       - pipeline/_strip_jupytext_metadata.py
-      - e2s/paths.py
       - e2s/validation.py
       - data/diagnostic/fcn3_diagnostic.zarr
     outs:
@@ -146,7 +213,6 @@ stages:
     deps:
       - pipeline/variable_subset/02_report.py
       - pipeline/_strip_jupytext_metadata.py
-      - e2s/paths.py
       - output/variable_subset/full_vs_subset.csv
     outs:
       - book/notebooks/08_variable_subset_report.ipynb:

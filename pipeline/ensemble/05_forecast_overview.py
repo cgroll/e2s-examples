@@ -14,14 +14,11 @@
 # This chapter shows the raw output of a single FCN3 ensemble run: 8
 # members, initialized from the same GFS analysis, perturbed only by the
 # model's own stochasticity (`Zero` perturbation - no explicit IC noise).
-# Three views of the same forecast:
 #
-# 1. A Robinson-projection animation of one member's 2m temperature field
-#    over the rollout.
-# 2. Every member's Munich 2m-temperature path individually (a "spaghetti"
-#    plot) - what the ensemble spread actually looks like member-by-member,
-#    not just as a summary statistic.
-# 3. The same data as a boxplot meteogram - the summary-statistic view.
+# It starts with a single member's rollout - what one forecast path looks
+# like on its own, before any talk of ensembles - then builds up to the
+# full picture: every member's path individually, and finally how much the
+# members disagree with each other (spread), animated over the rollout.
 #
 # Validation of these checks (are the members physically plausible?) is a
 # separate chapter - see `06_validation_report`.
@@ -49,8 +46,76 @@ COLOR_MEAN = "#1F5C99"
 ds = xr.open_zarr(paths.ensemble_zarr_path)
 x_hours = lead_time_hours(ds)
 
+
+def copy_gif(src, dst):
+    if src.exists():
+        shutil.copyfile(src, dst)
+        print(f"Copied {src} -> {dst}")
+    else:
+        print(f"[WARN] {src} not found - run 04_analyse.py first.")
+
+
 # %% [markdown]
-# ## Every member's path, individually
+# ## One path, animated
+#
+# A single member's rollout, Robinson projection: 2m temperature, 10m wind
+# speed, and 500 hPa geopotential (z500). All 8 members' animations (all
+# three fields) are rendered by `04_analyse.py` into `data/ensemble/gifs/`
+# - regenerable, not tracked in git. These are copied into `output/` as the
+# book's representative example; see `e2s/paths.py`'s `ensemble_gifs_path`
+# docstring for why the rest stay out of git.
+
+# %%
+copy_gif(
+    paths.ensemble_gifs_path / "member_00" / "t2m_robinson.gif",
+    paths.ensemble_book_path / "t2m_robinson_member00.gif",
+)
+copy_gif(
+    paths.ensemble_gifs_path / "member_00" / "wind10m_robinson.gif",
+    paths.ensemble_book_path / "wind10m_robinson_member00.gif",
+)
+copy_gif(
+    paths.ensemble_gifs_path / "member_00" / "z500_robinson.gif",
+    paths.ensemble_book_path / "z500_robinson_member00.gif",
+)
+
+# %% [markdown]
+# ```{figure} ../../output/ensemble/book/t2m_robinson_member00.gif
+# :name: fig-ensemble-t2m-gif
+# Member 0's 2m temperature field over the forecast rollout.
+# ```
+#
+# A second member, directly below, for comparison - same field, same
+# rollout, different member. Placed right next to each other this way, the
+# two animations make member-to-member disagreement visible at a glance,
+# before the full ensemble (all 8 members) is even introduced below.
+#
+# ```{figure} ../../output/ensemble/book/t2m_robinson_member01.gif
+# :name: fig-ensemble-t2m-gif-member01
+# Member 1's 2m temperature field over the same rollout - compare to
+# member 0's animation directly above.
+# ```
+#
+# ```{figure} ../../output/ensemble/book/wind10m_robinson_member00.gif
+# :name: fig-ensemble-wind-gif
+# Member 0's 10m wind speed field over the forecast rollout.
+# ```
+#
+# ```{figure} ../../output/ensemble/book/z500_robinson_member00.gif
+# :name: fig-ensemble-z500-gif
+# Member 0's 500 hPa geopotential (z500) field over the forecast rollout.
+# ```
+
+# %%
+copy_gif(
+    paths.ensemble_gifs_path / "member_01" / "t2m_robinson.gif",
+    paths.ensemble_book_path / "t2m_robinson_member01.gif",
+)
+
+# %% [markdown]
+# ## Ensemble
+#
+# ### Every member's path, individually
 #
 # Each line is one ensemble member's 2m temperature at Munich over the
 # rollout. Unlike a boxplot, this shows whether spread comes from a few
@@ -64,7 +129,7 @@ fig, ax = plt.subplots(figsize=(14, 5))
 for i in range(t2m_munich.shape[1]):
     ax.plot(x_hours, t2m_munich[:, i], color=COLOR_MEMBER, alpha=0.6, linewidth=1.0)
 ax.plot(x_hours, t2m_munich.mean(axis=1), color=COLOR_MEAN, linewidth=2.5, label="Ensemble mean")
-ax.set_xlabel("Lead time (hours)")
+ax.set_xlabel("Lead time (hours since UTC init)")
 ax.set_ylabel("Temperature (deg C)")
 ax.set_title("Munich - 2m temperature, every ensemble member")
 ax.legend(loc="best")
@@ -79,7 +144,7 @@ plt.show()
 # Munich 2m temperature, one line per ensemble member.
 # ```
 #
-# ## The same data, summarized
+# ### The same data, summarized
 #
 # A boxplot per lead-time step compresses the eight lines above into a
 # distribution - easier to scan for a long rollout, at the cost of hiding
@@ -90,26 +155,23 @@ plt.show()
 # Munich 2m temperature ensemble meteogram (boxplot per lead-time step).
 # ```
 #
-# ## One member, animated
+# ### Ensemble spread, animated
 #
-# A single member's 2m temperature field over the full rollout, Robinson
-# projection. All 8 members' animations (t2m and 10m wind) are rendered by
-# `04_analyse.py` into `data/ensemble/gifs/` - regenerable, not tracked in
-# git. This one is copied into `output/` as the book's representative
-# example; see `e2s/paths.py`'s `ensemble_gifs_path` docstring for why the
-# rest stay out of git.
+# Instead of comparing individual members by eye, this collapses all 8
+# members at each grid point into their standard deviation - a single
+# animated field showing where and when the ensemble disagrees with
+# itself. Rendered by `04_analyse.py` from the full field, not just
+# Munich, so patterns of spread (e.g. higher over land than over open
+# ocean) are visible spatially, not just as one time series.
 
 # %%
-hero_gif_src = paths.ensemble_gifs_path / "member_00" / "t2m_robinson.gif"
-hero_gif_dst = paths.ensemble_book_path / "t2m_robinson_member00.gif"
-if hero_gif_src.exists():
-    shutil.copyfile(hero_gif_src, hero_gif_dst)
-    print(f"Copied {hero_gif_src} -> {hero_gif_dst}")
-else:
-    print(f"[WARN] {hero_gif_src} not found - run 04_analyse.py first.")
+copy_gif(
+    paths.ensemble_gifs_path / "ensemble_std" / "t2m_std_robinson.gif",
+    paths.ensemble_book_path / "t2m_std_robinson.gif",
+)
 
 # %% [markdown]
-# ```{figure} ../../output/ensemble/book/t2m_robinson_member00.gif
-# :name: fig-ensemble-t2m-gif
-# Member 0's 2m temperature field over the forecast rollout.
+# ```{figure} ../../output/ensemble/book/t2m_std_robinson.gif
+# :name: fig-ensemble-t2m-std-gif
+# Ensemble standard deviation of 2m temperature, over the forecast rollout.
 # ```

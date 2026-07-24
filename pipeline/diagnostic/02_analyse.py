@@ -51,6 +51,13 @@ x_hours = lead_time_hours(ds)
 # during daylight hours. This is the basic sanity check for a diagnostic
 # model: does its output behave like the physical quantity it claims to be,
 # not just "some numbers in the right shape".
+#
+# Lead time below is hours since init, and init (`START_DATE` in
+# `01_run_solar_radiation.py`) is UTC, like all GFS-sourced timestamps in
+# this project - not Munich local time (UTC+2 in summer/CEST). Keep that
+# offset in mind when eyeballing "near zero overnight, positive by day":
+# the transitions land ~2h later on this axis than Munich wall-clock time
+# would suggest.
 
 # %%
 munich = nearest_point(ds, MUNICH_LAT, MUNICH_LON)
@@ -59,7 +66,7 @@ ssrd_munich = drop_time(munich["ssrd"]).compute().values
 fig, ax = plt.subplots(figsize=(14, 5))
 ax.plot(x_hours, ssrd_munich, color=COLOR_MEAN, linewidth=2.0, marker="o", markersize=4)
 ax.axhline(0, color="#AAAAAA", linewidth=0.8)
-ax.set_xlabel("Lead time (hours)")
+ax.set_xlabel("Lead time (hours since UTC init)")
 ax.set_ylabel("Accumulated solar radiation (J/m^2)")
 ax.set_title("Munich - diagnosed surface solar radiation (ssrd)")
 ax.grid(True, color="#DDDDDD", linewidth=0.6)
@@ -95,7 +102,7 @@ ax.coastlines(linewidth=0.5, color="#444444")
 mesh = ax.pcolormesh(lon, lat, field.values, transform=ccrs.PlateCarree(), cmap="inferno", shading="auto")
 cbar = fig.colorbar(mesh, ax=ax, orientation="horizontal", pad=0.05, shrink=0.7)
 cbar.set_label("Accumulated solar radiation (J/m^2)")
-ax.set_title(f"Global ssrd - step {snapshot_step} ({x_hours[snapshot_step]:.0f}h)")
+ax.set_title(f"Global ssrd - step {snapshot_step} ({x_hours[snapshot_step]:.0f}h UTC)")
 fig.tight_layout()
 fig.savefig(paths.diagnostic_output_path / "ssrd_global_snapshot.png", dpi=150, bbox_inches="tight")
 plt.show()

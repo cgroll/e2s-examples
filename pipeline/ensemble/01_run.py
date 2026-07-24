@@ -1,4 +1,3 @@
-import numpy as np
 import torch
 import xarray as xr
 import matplotlib.pyplot as plt
@@ -17,16 +16,8 @@ paths.ensure_directories()
 MODEL = 'FCN3'
 N_ENSEMBLE = 8
 N_STEPS = 30
-START_DATE = '2026-07-23T00:00:00'
+START_DATE = '2026-07-23T00:00:00'  # UTC - GFS timestamps are always UTC
 N_BATCH_SIZE = 2
-
-# Variables to keep in the zarr output. FCN3 still computes its full 72-variable
-# state internally at every step (it needs the whole state to roll forward), so
-# this only cuts storage/write time, not compute. Downstream (02_validate.py,
-# 03_validate_visualize.py, 04_analyse.py) only checks/plots whatever variables
-# are actually present, so trimming this list silently disables the checks that
-# depend on what's missing - see the printed [WARN] lines in 02_validate.py.
-OUTPUT_VARIABLES = ["u10m", "v10m", "t2m", "z500"]
 
 # 1. Load pre-trained FCN3 model
 print("Loading FCN3 model weights...")
@@ -44,6 +35,11 @@ io = ZarrBackend(str(zarr_path))
 perturbation = Zero()
 
 # 5. Execute Ensemble Forecast
+#
+# No output_coords override: writes FCN3's full 72-variable state (all
+# pressure levels) rather than a subset, so downstream cross-variable
+# consistency checks (e.g. z500 > z700 > z850 monotonicity in 02_validate.py)
+# have more than one pressure level to compare.
 print("Running FCN3 ensemble on GPU...")
 run_ensemble(
     time=[START_DATE],
@@ -54,6 +50,5 @@ run_ensemble(
     io=io,
     perturbation=perturbation,
     batch_size=N_BATCH_SIZE,
-    output_coords={"variable": np.array(OUTPUT_VARIABLES)},
 )
 print(f"Ensemble forecast complete! Saved to {zarr_path}")

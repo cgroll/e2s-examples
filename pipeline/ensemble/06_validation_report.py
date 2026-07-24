@@ -106,9 +106,14 @@ summary
 # %% [markdown]
 # ## Cross-variable consistency
 #
-# Checks physical ordering between pressure-level variables (geopotential
-# must increase with altitude, i.e. decrease with pressure). This run only
-# kept a single pressure level (`z500`) in its output variable subset - see
-# `01_run.py`'s `OUTPUT_VARIABLES` - so there's no pair of levels to compare
-# and this table is empty. Keeping ≥2 pressure levels of the same variable
-# in the output would activate this check.
+# Checks physical ordering between pressure-level variables: geopotential
+# must increase with altitude, i.e. decrease with pressure, so e.g.
+# `z500 > z700 > z850` should hold almost everywhere. `01_run.py` writes
+# FCN3's full 72-variable state (all pressure levels) rather than a
+# subset, so this check has adjacent-level pairs to compare across the
+# whole atmospheric column.
+#
+# ```{figure} ../../output/ensemble/validation/cross_variable_consistency_summary_heatmap.png
+# :name: fig-validation-cross-variable
+# Fraction of members violating pressure-level ordering, per check and lead time.
+# ```

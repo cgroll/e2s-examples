@@ -109,6 +109,24 @@ class ProjPaths:
     def downscaling_output_path(self) -> Path:
         return self.output_path / "downscaling"
 
+    @property
+    def downscaling_analysis_path(self) -> Path:
+        return self.downscaling_output_path / "analysis"
+
+    @property
+    def downscaling_book_path(self) -> Path:
+        """Assets rendered specifically for the book chapter - kept separate
+        from downscaling_analysis_path for the same reason as
+        ensemble_book_path; see that property's docstring."""
+        return self.downscaling_output_path / "book"
+
+    @property
+    def downscaling_gifs_path(self) -> Path:
+        """Per-member Robinson-projection animations - regenerable and too
+        large for git, so these live under data/ (DVC-cached) rather than
+        output/ (git-tracked); mirrors ensemble_gifs_path."""
+        return self.downscaling_data_path / "gifs"
+
     # ------------------------------------------------------------------ #
     # Experiment 3: per-step variable subset write behavior              #
     # ------------------------------------------------------------------ #
@@ -138,6 +156,53 @@ class ProjPaths:
         return self.output_path / "diagnostic"
 
     # ------------------------------------------------------------------ #
+    # Shared: Germany population-weighted regional statistics           #
+    # ------------------------------------------------------------------ #
+
+    @property
+    def germany_data_path(self) -> Path:
+        return self.data_path / "germany"
+
+    @property
+    def germany_population_mask_raw_path(self) -> Path:
+        """Raw 'weights and masks' download from CDS (dataset
+        sis-energy-pecd), or the fake stand-in - see
+        pipeline/germany/01_run.py. Kept separate from the processed mask
+        so re-running pipeline/germany/02_build_germany_mask.py after a
+        crop/regrid bugfix doesn't require re-fetching this."""
+        return self.germany_data_path / "pecd_population_mask_raw.nc"
+
+    @property
+    def germany_population_mask_path(self) -> Path:
+        """Germany-cropped population weights, regridded onto the
+        FCN3/SFNO native 0.25-deg grid - built by
+        pipeline/germany/02_build_germany_mask.py. Used by both
+        pipeline/ensemble/04_analyse.py and pipeline/downscaling/02_analyse.py
+        to compare a plain area-weighted vs. population-weighted Germany
+        mean temperature."""
+        return self.germany_data_path / "germany_population_mask.nc"
+
+    # ------------------------------------------------------------------ #
+    # Experiment 5: perturbation strategy comparison                    #
+    # ------------------------------------------------------------------ #
+
+    @property
+    def perturbation_data_path(self) -> Path:
+        return self.data_path / "perturbation"
+
+    def perturbation_zarr_path(self, config_name: str) -> Path:
+        """One zarr store per perturbation strategy compared in
+        pipeline/perturbation/01_run.py (e.g. "zero", "gaussian",
+        "bred_vector", "per_step_brown") - a method rather than a
+        @property like everything else here, since the number of configs
+        is open-ended rather than one fixed path per experiment."""
+        return self.perturbation_data_path / f"{config_name}.zarr"
+
+    @property
+    def perturbation_output_path(self) -> Path:
+        return self.output_path / "perturbation"
+
+    # ------------------------------------------------------------------ #
     # Helpers                                                            #
     # ------------------------------------------------------------------ #
 
@@ -151,10 +216,16 @@ class ProjPaths:
             self.ensemble_gifs_path,
             self.downscaling_data_path,
             self.downscaling_output_path,
+            self.downscaling_analysis_path,
+            self.downscaling_book_path,
+            self.downscaling_gifs_path,
             self.variable_subset_data_path,
             self.variable_subset_output_path,
             self.diagnostic_data_path,
             self.diagnostic_output_path,
+            self.germany_data_path,
+            self.perturbation_data_path,
+            self.perturbation_output_path,
         ]
         for d in dirs:
             d.mkdir(parents=True, exist_ok=True)

@@ -33,7 +33,7 @@ paths.ensure_directories()
 
 N_ENSEMBLE = 2
 N_STEPS = 4
-START_DATE = "2026-07-23T00:00:00"
+START_DATE = "2026-07-23T00:00:00"  # UTC - GFS timestamps are always UTC
 N_BATCH_SIZE = 2
 
 SUBSET_VARIABLES = ["u10m", "v10m", "t2m", "z500"]

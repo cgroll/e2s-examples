@@ -82,6 +82,21 @@ make serve     # http://localhost:3000 — live book preview
 
 Or target a single experiment: `uv run dvc repro ensemble_run`.
 
+`make serve` (`myst start`) runs two local servers, both bound to
+`127.0.0.1`: the site itself on port 3000, and a second "content server" on
+port 3100 that serves processed images — the page embeds absolute
+`http://localhost:3100/...` URLs for them. If you're viewing the book
+through SSH/VS Code port-forwarding and only forward 3000, the page loads
+but every image is broken. Forward 3100 too:
+
+```bash
+ssh -L 3000:localhost:3000 -L 3100:localhost:3100 <remote>
+```
+
+The static build (`make build-book`, also what CI publishes to gh-pages)
+doesn't have this problem — it has no second server, so it only needs one
+forwarded port.
+
 ## Project layout
 
 ```
