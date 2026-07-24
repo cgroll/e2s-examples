@@ -29,6 +29,38 @@ uv sync
 it deliberately does **not** install torch/earth2studio. See "Dependency
 management" below for why, and what runs the actual pipeline stages.
 
+## Session workflow (remote GPU box)
+
+The GPU box (see [e2s-launchable](https://github.com/cgroll/e2s-launchable))
+doesn't persist credentials between sessions, so each session starts and ends
+with a few manual steps.
+
+**Start of session**
+
+1. VS Code → `Remote-SSH: Connect to Host...` → the GPU box.
+2. Install extensions on the remote when prompted: **Remote - SSH**, **Claude
+   Code**.
+3. `claude` → log in.
+4. Create `.env` in the project root with a GitHub PAT (git-ignored, never
+   committed):
+   ```
+   GIT_PAT=<personal-access-token>
+   ```
+   There's no persistent git credential helper here, so pushes go through
+   this token explicitly:
+   ```bash
+   source .env
+   git push "https://${GIT_PAT}@github.com/cgroll/e2s-examples" main
+   ```
+
+**End of session**
+
+1. Commit and push everything — nothing on the box survives past the
+   session.
+2. `claude logout`.
+3. Remove the token so it doesn't sit on the box unattended: delete `.env`
+   (or blank out the `GIT_PAT=` line).
+
 ## Dependency management
 
 `earth2studio`'s own `pyproject.toml` pins several dependencies to specific
