@@ -240,6 +240,14 @@ def build_cross_time_consistency_table(ds, weights, hours):
 # property of the ensemble as a whole; an `ensemble` column is included for
 # schema symmetry with the other tables and for future per-member outlier
 # checks (e.g. "member i is >3 std from the ensemble mean").
+#
+# The ratio is measured against the spread at the first lead_time where it
+# becomes nonzero, not lead_time 0: with an unperturbed IC (e.g. Zero()
+# perturbation), spread at lead_time 0 is exactly 0 by construction, which
+# isn't a collapse - it's the shared analysis state before any model-internal
+# stochasticity has had a chance to act. Lead times before that reference
+# are the expected zero-spread onset period and are treated as trivially
+# valid rather than compared against a degenerate zero baseline.
 # ---------------------------------------------------------------------------
 def build_cross_ensemble_consistency_table(ds, weights, hours, var_name=SPREAD_VARIABLE):
     lt = _lead_time_frame(hours)
@@ -252,15 +260,25 @@ def build_cross_ensemble_consistency_table(ds, weights, hours, var_name=SPREAD_V
         ])
 
     spread = ensemble_spread_series(ds, weights, var_name)
-    spread_df = spread.to_dataframe(name="spread").reset_index()
-    ref = float(spread_df.loc[spread_df["lead_time"] == 0, "spread"].iloc[0])
+    spread_df = spread.to_dataframe(name="spread").reset_index().sort_values("lead_time").reset_index(drop=True)
+
+    nonzero = spread_df[spread_df["spread"] > 0]
+    ref_lead_time = int(nonzero["lead_time"].iloc[0]) if not nonzero.empty else None
+    ref = float(nonzero["spread"].iloc[0]) if not nonzero.empty else 0.0
 
     spread_df["check"] = f"ensemble_spread:{var_name}"
     spread_df["metric"] = f"std_global_mean_{var_name}"
     spread_df["ensemble"] = "aggregate"
     spread_df["ref_spread"] = ref
-    spread_df["ratio"] = spread_df["spread"] / ref if ref > 0 else np.inf
-    spread_df["valid"] = spread_df["ratio"].between(SPREAD_COLLAPSE_RATIO, SPREAD_EXPLOSION_RATIO)
+
+    if ref_lead_time is None:
+        # Spread never leaves zero across the whole rollout - genuine collapse.
+        spread_df["ratio"] = np.inf
+        spread_df["valid"] = False
+    else:
+        spread_df["ratio"] = spread_df["spread"] / ref
+        spread_df["valid"] = spread_df["ratio"].between(SPREAD_COLLAPSE_RATIO, SPREAD_EXPLOSION_RATIO)
+        spread_df.loc[spread_df["lead_time"] < ref_lead_time, "valid"] = True
 
     table = spread_df.merge(lt, on="lead_time", how="left")
     cols = ["check", "metric", "ensemble", "lead_time", "lead_time_hours", "spread", "ref_spread", "ratio", "valid"]

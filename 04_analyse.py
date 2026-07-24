@@ -22,6 +22,12 @@ GIF_STEP_STRIDE = 1
 GIF_FRAME_DURATION = 0.15  # seconds per frame
 GIF_DPI = 100
 
+# Block-average the lat/lon grid by this factor before rendering gifs. The
+# output frames are only ~800x450px, well below the native 0.25-deg grid's
+# resolution, so this is visually lossless while cutting cartopy's per-mesh
+# Robinson reprojection cost (the actual bottleneck) by roughly the same factor.
+GIF_SPATIAL_COARSEN_FACTOR = 4
+
 # Fixed color-scale limits so frames/members are visually comparable.
 T2M_VMIN, T2M_VCENTER, T2M_VMAX = 220.0, 273.15, 320.0  # Kelvin
 WIND_SPEED_MAX = 40.0  # m/s
@@ -41,21 +47,30 @@ def render_robinson_gif_scalar(ds, member_index, member_id, var_name, out_path, 
     arr = drop_time(ds[var_name].isel(ensemble=member_index))
     lon, lat = ds[lon_name].values, ds[lat_name].values
 
+    # Figure/axes/mesh are created once and reused across frames: cartopy's
+    # pcolormesh setup (antimeridian wrapping over the full global grid) costs
+    # ~20s, versus <1s to update an existing mesh's data via set_array. Doing
+    # this per-frame instead of per-gif is what made rendering take forever.
+    fig = plt.figure(figsize=(8, 4.5), dpi=GIF_DPI)
+    ax = plt.axes(projection=ccrs.Robinson())
+    ax.set_global()
+    ax.coastlines(linewidth=0.5, color="#444444")
+
+    mesh = None
     frames = []
     for step in range(0, arr.sizes["lead_time"], GIF_STEP_STRIDE):
         data = arr.isel(lead_time=step).values
-        fig = plt.figure(figsize=(8, 4.5), dpi=GIF_DPI)
-        ax = plt.axes(projection=ccrs.Robinson())
-        ax.set_global()
-        ax.coastlines(linewidth=0.5, color="#444444")
-        mesh = ax.pcolormesh(lon, lat, data, transform=ccrs.PlateCarree(), cmap=cmap, norm=norm, shading="auto")
-        cbar = fig.colorbar(mesh, ax=ax, orientation="horizontal", pad=0.05, shrink=0.7)
-        cbar.set_label(cbar_label)
+        if mesh is None:
+            mesh = ax.pcolormesh(lon, lat, data, transform=ccrs.PlateCarree(), cmap=cmap, norm=norm, shading="auto")
+            cbar = fig.colorbar(mesh, ax=ax, orientation="horizontal", pad=0.05, shrink=0.7)
+            cbar.set_label(cbar_label)
+        else:
+            mesh.set_array(data.ravel())
         ax.set_title(f"{var_name} - member {member_id} - step {step}")
         fig.canvas.draw()
         frames.append(np.asarray(fig.canvas.buffer_rgba()).copy())
-        plt.close(fig)
 
+    plt.close(fig)
     imageio.mimsave(out_path, frames, duration=GIF_FRAME_DURATION, loop=0)
 
 
@@ -69,38 +84,57 @@ def render_robinson_gif_wind(ds, member_index, member_id, out_path):
     lon_stride = max(1, len(lon) // 36)
     lat_stride = max(1, len(lat) // 18)
 
+    # See render_robinson_gif_scalar: mesh/quiver are created once and updated
+    # in place per frame rather than rebuilt, since cartopy's pcolormesh setup
+    # over the full global grid is ~20s vs <1s for a set_array/set_UVC update.
+    fig = plt.figure(figsize=(8, 4.5), dpi=GIF_DPI)
+    ax = plt.axes(projection=ccrs.Robinson())
+    ax.set_global()
+    ax.coastlines(linewidth=0.5, color="#444444")
+
+    mesh = None
+    quiver = None
     frames = []
     for step in range(0, u.sizes["lead_time"], GIF_STEP_STRIDE):
         u_step = u.isel(lead_time=step).values
         v_step = v.isel(lead_time=step).values
         speed_step = np.hypot(u_step, v_step)
 
-        fig = plt.figure(figsize=(8, 4.5), dpi=GIF_DPI)
-        ax = plt.axes(projection=ccrs.Robinson())
-        ax.set_global()
-        ax.coastlines(linewidth=0.5, color="#444444")
-        mesh = ax.pcolormesh(
-            lon, lat, speed_step, transform=ccrs.PlateCarree(),
-            cmap="viridis", vmin=0, vmax=WIND_SPEED_MAX, shading="auto",
-        )
-        ax.quiver(
-            lon[::lon_stride], lat[::lat_stride],
-            u_step[::lat_stride, ::lon_stride], v_step[::lat_stride, ::lon_stride],
-            transform=ccrs.PlateCarree(), color="black", scale=800, width=0.0022,
-        )
-        cbar = fig.colorbar(mesh, ax=ax, orientation="horizontal", pad=0.05, shrink=0.7)
-        cbar.set_label("10m wind speed (m/s)")
+        if mesh is None:
+            mesh = ax.pcolormesh(
+                lon, lat, speed_step, transform=ccrs.PlateCarree(),
+                cmap="viridis", vmin=0, vmax=WIND_SPEED_MAX, shading="auto",
+            )
+            quiver = ax.quiver(
+                lon[::lon_stride], lat[::lat_stride],
+                u_step[::lat_stride, ::lon_stride], v_step[::lat_stride, ::lon_stride],
+                transform=ccrs.PlateCarree(), color="black", scale=800, width=0.0022,
+            )
+            cbar = fig.colorbar(mesh, ax=ax, orientation="horizontal", pad=0.05, shrink=0.7)
+            cbar.set_label("10m wind speed (m/s)")
+        else:
+            mesh.set_array(speed_step.ravel())
+            quiver.set_UVC(u_step[::lat_stride, ::lon_stride], v_step[::lat_stride, ::lon_stride])
+
         ax.set_title(f"10m wind - member {member_id} - step {step}")
         fig.canvas.draw()
         frames.append(np.asarray(fig.canvas.buffer_rgba()).copy())
-        plt.close(fig)
 
+    plt.close(fig)
     imageio.mimsave(out_path, frames, duration=GIF_FRAME_DURATION, loop=0)
 
 
 # ---------------------------------------------------------------------------
 # Munich meteograms (ensemble boxplot per lead_time step)
 # ---------------------------------------------------------------------------
+def coarsen_spatial(ds, factor):
+    if factor <= 1:
+        return ds
+    lat_name = next(n for n in ("lat", "latitude") if n in ds.coords)
+    lon_name = next(n for n in ("lon", "longitude") if n in ds.coords)
+    return ds.coarsen({lat_name: factor, lon_name: factor}, boundary="trim").mean()
+
+
 def plot_meteogram_boxplot(x_hours, data_2d, title, ylabel, out_path):
     """data_2d: shape (n_lead_time, n_ensemble)."""
     fig, ax = plt.subplots(figsize=(14, 5))
@@ -141,6 +175,8 @@ def main():
 
     output_dir.mkdir(parents=True, exist_ok=True)
 
+    ds_gif = coarsen_spatial(ds, GIF_SPATIAL_COARSEN_FACTOR)
+
     print("Rendering Munich meteograms...")
     munich = nearest_point(ds, MUNICH_LAT, MUNICH_LON)
 
@@ -170,13 +206,13 @@ def main():
 
         if "t2m" in ds.data_vars:
             render_robinson_gif_scalar(
-                ds, i, member_id, "t2m", member_dir / "t2m_robinson.gif",
+                ds_gif, i, member_id, "t2m", member_dir / "t2m_robinson.gif",
                 cmap="RdBu_r",
                 norm=mcolors.TwoSlopeNorm(vmin=T2M_VMIN, vcenter=T2M_VCENTER, vmax=T2M_VMAX),
                 cbar_label="2m temperature (K)",
             )
         if has_wind:
-            render_robinson_gif_wind(ds, i, member_id, member_dir / "wind10m_robinson.gif")
+            render_robinson_gif_wind(ds_gif, i, member_id, member_dir / "wind10m_robinson.gif")
 
     print(f"\nDone. Analysis charts written to {output_dir}/")
 

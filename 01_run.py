@@ -10,10 +10,10 @@ from earth2studio.run import ensemble as run_ensemble
 from earth2studio.perturbation import Zero
 
 MODEL = 'FCN3'
-N_ENSEMBLE = 20
-N_STEPS = 30*4
+N_ENSEMBLE = 8
+N_STEPS = 30
 START_DATE = '2026-07-23T00:00:00'
-N_BATCH_SIZE = 10
+N_BATCH_SIZE = 2
 
 # Variables to keep in the zarr output. FCN3 still computes its full 72-variable
 # state internally at every step (it needs the whole state to roll forward), so
