@@ -1,0 +1,28 @@
+version: 1
+project:
+  title: Earth2Studio Experiments
+  authors:
+    - name: cgroll
+  copyright: '2026'
+  exclude:
+    - _build
+    - Thumbs.db
+    - .DS_Store
+    - '**.ipynb_checkpoints'
+  github: cgroll/e2s-examples
+  toc:
+    - file: markdown/index.md
+    - title: Ensemble forecast
+      children:
+        - file: notebooks/05_forecast_overview.ipynb
+        - file: notebooks/06_validation_report.ipynb
+    - title: Diagnostic model
+      children:
+        - file: notebooks/07_diagnostic_solar_radiation.ipynb
+    - title: Variable subsetting
+      children:
+        - file: notebooks/08_variable_subset_report.ipynb
+site:
+  options:
+    folders: true
+  template: book-theme

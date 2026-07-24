@@ -1,6 +1,7 @@
-outputs/
-analysis_output/
-validation_output/
+data/
+.venv/
+book/_build/
 
 __pycache__/
 .ipynb_checkpoints/
+.env

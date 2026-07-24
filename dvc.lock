@@ -1,0 +1,298 @@
+schema: '2.0'
+stages:
+  ensemble_run:
+    cmd: PYTHONPATH=. ${E2S_PYTHON:-/root/earth2studio-project/.venv/bin/python}
+      pipeline/ensemble/01_run.py
+    deps:
+    - path: e2s/paths.py
+      hash: md5
+      md5: 6ba0cf129b873c9281ae2228c6f344a7
+      size: 5729
+    - path: pipeline/ensemble/01_run.py
+      hash: md5
+      md5: b7fb2151c666dba3f4a9849c98b9c871
+      size: 1745
+    outs:
+    - path: data/ensemble/fcn3_ensemble.zarr
+      hash: md5
+      md5: 8fbc947e9d4f66ae7cdb5592f6772fca.dir
+      size: 4119759675
+      nfiles: 1007
+  ensemble_validate:
+    cmd: PYTHONPATH=. ${E2S_PYTHON:-/root/earth2studio-project/.venv/bin/python}
+      pipeline/ensemble/02_validate.py && PYTHONPATH=. 
+      ${E2S_PYTHON:-/root/earth2studio-project/.venv/bin/python} 
+      pipeline/ensemble/03_validate_visualize.py
+    deps:
+    - path: data/ensemble/fcn3_ensemble.zarr
+      hash: md5
+      md5: 8fbc947e9d4f66ae7cdb5592f6772fca.dir
+      size: 4119759675
+      nfiles: 1007
+    - path: e2s/paths.py
+      hash: md5
+      md5: 6ba0cf129b873c9281ae2228c6f344a7
+      size: 5729
+    - path: e2s/validation.py
+      hash: md5
+      md5: 39270c908a4027a58dd515d7fbaf1f12
+      size: 3026
+    - path: pipeline/ensemble/02_validate.py
+      hash: md5
+      md5: f112561b91b7c42eeb1ab134d741b80a
+      size: 15465
+    - path: pipeline/ensemble/03_validate_visualize.py
+      hash: md5
+      md5: 8d60f172b9709d86fcafe1ecee93ca23
+      size: 10650
+    outs:
+    - path: output/ensemble/validation
+      hash: md5
+      md5: 47ce216f9e51f109a4b303f1ba382227.dir
+      size: 1268055
+      nfiles: 17
+  ensemble_analyse:
+    cmd: PYTHONPATH=. ${E2S_PYTHON:-/root/earth2studio-project/.venv/bin/python}
+      pipeline/ensemble/04_analyse.py
+    deps:
+    - path: data/ensemble/fcn3_ensemble.zarr
+      hash: md5
+      md5: 8fbc947e9d4f66ae7cdb5592f6772fca.dir
+      size: 4119759675
+      nfiles: 1007
+    - path: e2s/paths.py
+      hash: md5
+      md5: 6ba0cf129b873c9281ae2228c6f344a7
+      size: 5729
+    - path: e2s/validation.py
+      hash: md5
+      md5: 39270c908a4027a58dd515d7fbaf1f12
+      size: 3026
+    - path: pipeline/ensemble/04_analyse.py
+      hash: md5
+      md5: c5dea305e2db86dcb60fcb4965674b3d
+      size: 9353
+    outs:
+    - path: data/ensemble/gifs
+      hash: md5
+      md5: c7de4e49b824b5ebcf8e9f437d85d511.dir
+      size: 21952992
+      nfiles: 16
+    - path: output/ensemble/analysis
+      hash: md5
+      md5: e668d8a05302fc2ae95a080d3e919c3c.dir
+      size: 119911
+      nfiles: 2
+  downscaling_run:
+    cmd: PYTHONPATH=. ${E2S_PYTHON:-/root/earth2studio-project/.venv/bin/python}
+      pipeline/downscaling/01_run.py
+    deps:
+    - path: e2s/paths.py
+      hash: md5
+      md5: 6ba0cf129b873c9281ae2228c6f344a7
+      size: 5729
+    - path: pipeline/downscaling/01_run.py
+      hash: md5
+      md5: 683604879c9d089b56eaf6b9422c8e8d
+      size: 4242
+    outs:
+    - path: data/downscaling/sfno_downscaled.zarr
+      hash: md5
+      md5: 0af052d9627137096e335cdd5402b994.dir
+      size: 3317783299
+      nfiles: 815
+  variable_subset_compare:
+    cmd: PYTHONPATH=. ${E2S_PYTHON:-/root/earth2studio-project/.venv/bin/python}
+      pipeline/variable_subset/01_compare_full_vs_subset.py
+    deps:
+    - path: e2s/paths.py
+      hash: md5
+      md5: 6ba0cf129b873c9281ae2228c6f344a7
+      size: 5729
+    - path: pipeline/variable_subset/01_compare_full_vs_subset.py
+      hash: md5
+      md5: 7c33116bf6631fae0abb7844c6510cfe
+      size: 4491
+    outs:
+    - path: output/variable_subset/full_vs_subset.csv
+      hash: md5
+      md5: b7b0432cec2e49c9fd91cf8f2e082199
+      size: 117
+    - path: output/variable_subset/full_vs_subset.md
+      hash: md5
+      md5: d8183a59b8d4c38c5ed151eb6400413d
+      size: 721
+  diagnostic_solar_radiation:
+    cmd: PYTHONPATH=. ${E2S_PYTHON:-/root/earth2studio-project/.venv/bin/python}
+      pipeline/diagnostic/01_run_solar_radiation.py
+    deps:
+    - path: e2s/paths.py
+      hash: md5
+      md5: 6ba0cf129b873c9281ae2228c6f344a7
+      size: 5729
+    - path: pipeline/diagnostic/01_run_solar_radiation.py
+      hash: md5
+      md5: b615b2b31c88f88bc4b3e57c0fb2c8dd
+      size: 3069
+    outs:
+    - path: data/diagnostic/fcn3_diagnostic.zarr
+      hash: md5
+      md5: d43ad059a2ff90a617b1b8fed187d0cc.dir
+      size: 54009011
+      nfiles: 23
+  ensemble_book_forecast_overview:
+    cmd: MPLBACKEND=Agg PYTHONPATH=$(pwd) uv run jupytext --to notebook 
+      --execute --set-kernel e2s-gpu --output 
+      book/notebooks/05_forecast_overview.ipynb 
+      pipeline/ensemble/05_forecast_overview.py && uv run python 
+      pipeline/_strip_jupytext_metadata.py 
+      book/notebooks/05_forecast_overview.ipynb
+    deps:
+    - path: data/ensemble/fcn3_ensemble.zarr
+      hash: md5
+      md5: 8fbc947e9d4f66ae7cdb5592f6772fca.dir
+      size: 4119759675
+      nfiles: 1007
+    - path: data/ensemble/gifs
+      hash: md5
+      md5: c7de4e49b824b5ebcf8e9f437d85d511.dir
+      size: 21952992
+      nfiles: 16
+    - path: e2s/paths.py
+      hash: md5
+      md5: 6ba0cf129b873c9281ae2228c6f344a7
+      size: 5729
+    - path: e2s/validation.py
+      hash: md5
+      md5: 39270c908a4027a58dd515d7fbaf1f12
+      size: 3026
+    - path: output/ensemble/analysis/meteogram_t2m_munich.png
+      hash: md5
+      md5: 9f116d99bc409d34c1b11698becd2fac
+      size: 60272
+    - path: pipeline/_strip_jupytext_metadata.py
+      hash: md5
+      md5: 19bb5d4de197aa76a272664affdbccdf
+      size: 540
+    - path: pipeline/ensemble/05_forecast_overview.py
+      hash: md5
+      md5: 43e00e3080af7b7d041b56f707f99de4
+      size: 3987
+    outs:
+    - path: book/notebooks/05_forecast_overview.ipynb
+      hash: md5
+      md5: ec55a58d75030d9b46e6e915418bd9a1
+      size: 7573
+    - path: output/ensemble/book/spaghetti_t2m_munich.png
+      hash: md5
+      md5: 6da487469831f4edc5726fae93b9089a
+      size: 305693
+    - path: output/ensemble/book/t2m_robinson_member00.gif
+      hash: md5
+      md5: fab29121725c1b40b62016b922b1a7ff
+      size: 1223006
+  ensemble_book_validation_report:
+    cmd: MPLBACKEND=Agg PYTHONPATH=$(pwd) uv run jupytext --to notebook 
+      --execute --set-kernel e2s-gpu --output 
+      book/notebooks/06_validation_report.ipynb 
+      pipeline/ensemble/06_validation_report.py && uv run python 
+      pipeline/_strip_jupytext_metadata.py 
+      book/notebooks/06_validation_report.ipynb
+    deps:
+    - path: e2s/paths.py
+      hash: md5
+      md5: 6ba0cf129b873c9281ae2228c6f344a7
+      size: 5729
+    - path: output/ensemble/validation
+      hash: md5
+      md5: 47ce216f9e51f109a4b303f1ba382227.dir
+      size: 1268055
+      nfiles: 17
+    - path: pipeline/_strip_jupytext_metadata.py
+      hash: md5
+      md5: 19bb5d4de197aa76a272664affdbccdf
+      size: 540
+    - path: pipeline/ensemble/06_validation_report.py
+      hash: md5
+      md5: 88bb1b31ba0e3c3525cec6df8ba913e4
+      size: 4726
+    outs:
+    - path: book/notebooks/06_validation_report.ipynb
+      hash: md5
+      md5: fb9395cf003a8ae841c00afa340670ff
+      size: 8826
+  diagnostic_book_analyse:
+    cmd: MPLBACKEND=Agg PYTHONPATH=$(pwd) uv run jupytext --to notebook 
+      --execute --set-kernel e2s-gpu --output 
+      book/notebooks/07_diagnostic_solar_radiation.ipynb 
+      pipeline/diagnostic/02_analyse.py && uv run python 
+      pipeline/_strip_jupytext_metadata.py 
+      book/notebooks/07_diagnostic_solar_radiation.ipynb
+    deps:
+    - path: data/diagnostic/fcn3_diagnostic.zarr
+      hash: md5
+      md5: d43ad059a2ff90a617b1b8fed187d0cc.dir
+      size: 54009011
+      nfiles: 23
+    - path: e2s/paths.py
+      hash: md5
+      md5: 6ba0cf129b873c9281ae2228c6f344a7
+      size: 5729
+    - path: e2s/validation.py
+      hash: md5
+      md5: 39270c908a4027a58dd515d7fbaf1f12
+      size: 3026
+    - path: pipeline/_strip_jupytext_metadata.py
+      hash: md5
+      md5: 19bb5d4de197aa76a272664affdbccdf
+      size: 540
+    - path: pipeline/diagnostic/02_analyse.py
+      hash: md5
+      md5: ef69482f8c7af4ac3b6ebbbfe280f64d
+      size: 4015
+    outs:
+    - path: book/notebooks/07_diagnostic_solar_radiation.ipynb
+      hash: md5
+      md5: 3a165bf64ee98f36c8d0d5e27176a9a1
+      size: 7343
+    - path: output/diagnostic/ssrd_global_snapshot.png
+      hash: md5
+      md5: 869cefe14a62eeb5973ac953a94bfbd9
+      size: 346456
+    - path: output/diagnostic/ssrd_timeseries_munich.png
+      hash: md5
+      md5: c353febd215a573426414019edbd36a5
+      size: 99442
+  variable_subset_book_report:
+    cmd: MPLBACKEND=Agg PYTHONPATH=$(pwd) uv run jupytext --to notebook 
+      --execute --set-kernel e2s-gpu --output 
+      book/notebooks/08_variable_subset_report.ipynb 
+      pipeline/variable_subset/02_report.py && uv run python 
+      pipeline/_strip_jupytext_metadata.py 
+      book/notebooks/08_variable_subset_report.ipynb
+    deps:
+    - path: e2s/paths.py
+      hash: md5
+      md5: 6ba0cf129b873c9281ae2228c6f344a7
+      size: 5729
+    - path: output/variable_subset/full_vs_subset.csv
+      hash: md5
+      md5: b7b0432cec2e49c9fd91cf8f2e082199
+      size: 117
+    - path: pipeline/_strip_jupytext_metadata.py
+      hash: md5
+      md5: 19bb5d4de197aa76a272664affdbccdf
+      size: 540
+    - path: pipeline/variable_subset/02_report.py
+      hash: md5
+      md5: 003d2deb4ca10ae16c870f6e8723bee0
+      size: 3309
+    outs:
+    - path: book/notebooks/08_variable_subset_report.ipynb
+      hash: md5
+      md5: 623eaa8da9198e7c3adc592409d510d5
+      size: 7361
+    - path: output/variable_subset/full_vs_subset_bars.png
+      hash: md5
+      md5: 9b9538d03d862977e5667888b14330e3
+      size: 34175

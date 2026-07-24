@@ -1,0 +1,25 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: check-toml
+      - id: check-yaml
+      - id: end-of-file-fixer
+        types: [python]
+      - id: trailing-whitespace
+      - id: check-added-large-files
+        # 2000, not the template default 500: the ensemble forecast-overview
+        # book chapter deliberately tracks one "hero" Robinson-projection gif
+        # (~1.2MB) - see pipeline/ensemble/05_forecast_overview.py. Every
+        # other per-member gif stays in data/ (DVC-cached, not git).
+        args: ["--maxkb=2000"]
+
+  - repo: https://github.com/psf/black-pre-commit-mirror
+    rev: 25.1.0
+    hooks:
+      - id: black
+
+  - repo: https://github.com/kynan/nbstripout
+    rev: 0.8.1
+    hooks:
+      - id: nbstripout

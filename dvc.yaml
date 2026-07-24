@@ -1,0 +1,155 @@
+# All pipeline stages run against the pre-built GPU environment (torch,
+# earth2studio and its extras), not against this project's own uv venv -
+# see "Dependency management" in README.md. E2S_PYTHON defaults to the venv
+# built by https://github.com/cgroll/e2s-launchable's Dockerfile; override
+# it with `export E2S_PYTHON=/path/to/other/venv/bin/python` before `dvc
+# repro` if that environment lives elsewhere. PYTHONPATH=. makes e2s/ (this
+# repo's own package, installed nowhere) importable without a separate
+# install step.
+
+stages:
+  ensemble_run:
+    cmd: PYTHONPATH=. \${E2S_PYTHON:-/root/earth2studio-project/.venv/bin/python} pipeline/ensemble/01_run.py
+    deps:
+      - pipeline/ensemble/01_run.py
+      - e2s/paths.py
+    outs:
+      - data/ensemble/fcn3_ensemble.zarr:
+          persist: true
+
+  ensemble_validate:
+    cmd: >-
+      PYTHONPATH=. \${E2S_PYTHON:-/root/earth2studio-project/.venv/bin/python} pipeline/ensemble/02_validate.py &&
+      PYTHONPATH=. \${E2S_PYTHON:-/root/earth2studio-project/.venv/bin/python} pipeline/ensemble/03_validate_visualize.py
+    deps:
+      - pipeline/ensemble/02_validate.py
+      - pipeline/ensemble/03_validate_visualize.py
+      - e2s/paths.py
+      - e2s/validation.py
+      - data/ensemble/fcn3_ensemble.zarr
+    outs:
+      - output/ensemble/validation:
+          cache: false
+
+  ensemble_analyse:
+    cmd: PYTHONPATH=. \${E2S_PYTHON:-/root/earth2studio-project/.venv/bin/python} pipeline/ensemble/04_analyse.py
+    deps:
+      - pipeline/ensemble/04_analyse.py
+      - e2s/paths.py
+      - e2s/validation.py
+      - data/ensemble/fcn3_ensemble.zarr
+    outs:
+      - output/ensemble/analysis:
+          cache: false
+      - data/ensemble/gifs
+
+  ensemble_book_forecast_overview:
+    cmd: >-
+      MPLBACKEND=Agg PYTHONPATH=$(pwd) uv run jupytext --to notebook --execute
+      --set-kernel e2s-gpu
+      --output book/notebooks/05_forecast_overview.ipynb
+      pipeline/ensemble/05_forecast_overview.py &&
+      uv run python pipeline/_strip_jupytext_metadata.py
+      book/notebooks/05_forecast_overview.ipynb
+    deps:
+      - pipeline/ensemble/05_forecast_overview.py
+      - pipeline/_strip_jupytext_metadata.py
+      - e2s/paths.py
+      - e2s/validation.py
+      - data/ensemble/fcn3_ensemble.zarr
+      - data/ensemble/gifs
+      - output/ensemble/analysis/meteogram_t2m_munich.png
+    outs:
+      - book/notebooks/05_forecast_overview.ipynb:
+          cache: false
+      - output/ensemble/book/spaghetti_t2m_munich.png:
+          cache: false
+      - output/ensemble/book/t2m_robinson_member00.gif:
+          cache: false
+
+  ensemble_book_validation_report:
+    cmd: >-
+      MPLBACKEND=Agg PYTHONPATH=$(pwd) uv run jupytext --to notebook --execute
+      --set-kernel e2s-gpu
+      --output book/notebooks/06_validation_report.ipynb
+      pipeline/ensemble/06_validation_report.py &&
+      uv run python pipeline/_strip_jupytext_metadata.py
+      book/notebooks/06_validation_report.ipynb
+    deps:
+      - pipeline/ensemble/06_validation_report.py
+      - pipeline/_strip_jupytext_metadata.py
+      - e2s/paths.py
+      - output/ensemble/validation
+    outs:
+      - book/notebooks/06_validation_report.ipynb:
+          cache: false
+
+  downscaling_run:
+    cmd: PYTHONPATH=. \${E2S_PYTHON:-/root/earth2studio-project/.venv/bin/python} pipeline/downscaling/01_run.py
+    deps:
+      - pipeline/downscaling/01_run.py
+      - e2s/paths.py
+    outs:
+      - data/downscaling/sfno_downscaled.zarr:
+          persist: true
+
+  variable_subset_compare:
+    cmd: PYTHONPATH=. \${E2S_PYTHON:-/root/earth2studio-project/.venv/bin/python} pipeline/variable_subset/01_compare_full_vs_subset.py
+    deps:
+      - pipeline/variable_subset/01_compare_full_vs_subset.py
+      - e2s/paths.py
+    outs:
+      - output/variable_subset/full_vs_subset.md:
+          cache: false
+      - output/variable_subset/full_vs_subset.csv:
+          cache: false
+
+  diagnostic_solar_radiation:
+    cmd: PYTHONPATH=. \${E2S_PYTHON:-/root/earth2studio-project/.venv/bin/python} pipeline/diagnostic/01_run_solar_radiation.py
+    deps:
+      - pipeline/diagnostic/01_run_solar_radiation.py
+      - e2s/paths.py
+    outs:
+      - data/diagnostic/fcn3_diagnostic.zarr:
+          persist: true
+
+  diagnostic_book_analyse:
+    cmd: >-
+      MPLBACKEND=Agg PYTHONPATH=$(pwd) uv run jupytext --to notebook --execute
+      --set-kernel e2s-gpu
+      --output book/notebooks/07_diagnostic_solar_radiation.ipynb
+      pipeline/diagnostic/02_analyse.py &&
+      uv run python pipeline/_strip_jupytext_metadata.py
+      book/notebooks/07_diagnostic_solar_radiation.ipynb
+    deps:
+      - pipeline/diagnostic/02_analyse.py
+      - pipeline/_strip_jupytext_metadata.py
+      - e2s/paths.py
+      - e2s/validation.py
+      - data/diagnostic/fcn3_diagnostic.zarr
+    outs:
+      - book/notebooks/07_diagnostic_solar_radiation.ipynb:
+          cache: false
+      - output/diagnostic/ssrd_timeseries_munich.png:
+          cache: false
+      - output/diagnostic/ssrd_global_snapshot.png:
+          cache: false
+
+  variable_subset_book_report:
+    cmd: >-
+      MPLBACKEND=Agg PYTHONPATH=$(pwd) uv run jupytext --to notebook --execute
+      --set-kernel e2s-gpu
+      --output book/notebooks/08_variable_subset_report.ipynb
+      pipeline/variable_subset/02_report.py &&
+      uv run python pipeline/_strip_jupytext_metadata.py
+      book/notebooks/08_variable_subset_report.ipynb
+    deps:
+      - pipeline/variable_subset/02_report.py
+      - pipeline/_strip_jupytext_metadata.py
+      - e2s/paths.py
+      - output/variable_subset/full_vs_subset.csv
+    outs:
+      - book/notebooks/08_variable_subset_report.ipynb:
+          cache: false
+      - output/variable_subset/full_vs_subset_bars.png:
+          cache: false

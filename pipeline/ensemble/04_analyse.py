@@ -11,10 +11,12 @@ import matplotlib.pyplot as plt
 import numpy as np
 import xarray as xr
 
-from common import drop_time, lead_time_hours, nearest_point
+from e2s.paths import ProjPaths
+from e2s.validation import drop_time, lead_time_hours, nearest_point
 
-zarr_path = "outputs/fcn3_ensemble.zarr"
-output_dir = Path("analysis_output")
+paths = ProjPaths()
+zarr_path = paths.ensemble_zarr_path
+output_dir = paths.ensemble_analysis_path
 
 # Render every Nth lead_time step into the gifs (1 = every step). Bumping this
 # up trades animation smoothness for a lot less render time on long rollouts.
@@ -199,8 +201,12 @@ def main():
     else:
         print("[WARN] u10m/v10m not present, skipping Munich wind meteogram.")
 
+    # Per-member gifs are regenerable and too large for git, so they go under
+    # data/ (DVC-cached) rather than output/ (git-tracked) - see
+    # ProjPaths.ensemble_gifs_path.
+    gifs_dir = paths.ensemble_gifs_path
     for i, member_id in enumerate(member_ids):
-        member_dir = output_dir / f"member_{int(member_id):02d}"
+        member_dir = gifs_dir / f"member_{int(member_id):02d}"
         member_dir.mkdir(parents=True, exist_ok=True)
         print(f"Rendering member {member_id} ({i + 1}/{len(member_ids)}) ...")
 
@@ -214,7 +220,7 @@ def main():
         if has_wind:
             render_robinson_gif_wind(ds_gif, i, member_id, member_dir / "wind10m_robinson.gif")
 
-    print(f"\nDone. Analysis charts written to {output_dir}/")
+    print(f"\nDone. Meteograms written to {output_dir}/, gifs written to {gifs_dir}/")
 
 
 if __name__ == "__main__":

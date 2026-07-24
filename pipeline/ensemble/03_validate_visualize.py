@@ -9,10 +9,13 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
+from e2s.paths import ProjPaths
+
 # This script only reads the CSV tables written by 02_validate.py - it never
 # touches the zarr store, so it stays fast even on large ensembles/rollouts.
-output_dir = Path("validation_output")
-tables_dir = output_dir / "tables"
+paths = ProjPaths()
+output_dir = paths.ensemble_validation_path
+tables_dir = paths.ensemble_validation_tables_path
 
 COLOR_VALID = "#3A9D5D"
 COLOR_INVALID = "#D64545"

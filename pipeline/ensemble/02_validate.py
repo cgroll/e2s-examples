@@ -5,7 +5,8 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 
-from common import (
+from e2s.paths import ProjPaths
+from e2s.validation import (
     area_weights,
     bounds_for,
     drop_time,
@@ -15,9 +16,11 @@ from common import (
     lead_time_hours,
 )
 
-zarr_path = "outputs/fcn3_ensemble.zarr"
-output_dir = Path("validation_output")
-tables_dir = output_dir / "tables"
+paths = ProjPaths()
+paths.ensure_directories()
+zarr_path = paths.ensemble_zarr_path
+output_dir = paths.ensemble_validation_path
+tables_dir = paths.ensemble_validation_tables_path
 
 # Pressure-level variables that must be monotonic across levels: geopotential
 # height increases with altitude, and altitude increases as pressure decreases,

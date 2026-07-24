@@ -9,6 +9,11 @@ from earth2studio.io import ZarrBackend
 from earth2studio.run import ensemble as run_ensemble
 from earth2studio.perturbation import Zero
 
+from e2s.paths import ProjPaths
+
+paths = ProjPaths()
+paths.ensure_directories()
+
 MODEL = 'FCN3'
 N_ENSEMBLE = 8
 N_STEPS = 30
@@ -32,8 +37,8 @@ model = FCN3.load_model(package)
 data = GFS()
 
 # 3. Configure output backend
-zarr_path = "outputs/fcn3_ensemble.zarr"
-io = ZarrBackend(zarr_path)
+zarr_path = paths.ensemble_zarr_path
+io = ZarrBackend(str(zarr_path))
 
 # 4. Define the Perturbation Method
 perturbation = Zero()
