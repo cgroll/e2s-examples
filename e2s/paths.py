@@ -182,6 +182,18 @@ class ProjPaths:
         mean temperature."""
         return self.germany_data_path / "germany_population_mask.nc"
 
+    @property
+    def germany_output_path(self) -> Path:
+        return self.output_path / "germany"
+
+    @property
+    def germany_book_path(self) -> Path:
+        """Assets rendered specifically for the population-weighted-mean
+        book chapter (pipeline/germany/03_population_weighted_overview.py)
+        - mirrors ensemble_book_path/downscaling_book_path so the book
+        stage owns this directory as its own DVC output."""
+        return self.germany_output_path / "book"
+
     # ------------------------------------------------------------------ #
     # Experiment 5: perturbation strategy comparison                    #
     # ------------------------------------------------------------------ #
@@ -224,6 +236,8 @@ class ProjPaths:
             self.diagnostic_data_path,
             self.diagnostic_output_path,
             self.germany_data_path,
+            self.germany_output_path,
+            self.germany_book_path,
             self.perturbation_data_path,
             self.perturbation_output_path,
         ]

@@ -21,12 +21,17 @@ stages:
   # data), force those stages to pick it up with `dvc repro -f
   # ensemble_analyse downscaling_analyse` (DVC won't notice the new/
   # changed file on its own, since it's not a tracked dependency).
+  # germany_book_population_weighted (below, near ensemble_book_*) is the
+  # exception: it's the dedicated Germany chapter, so hard-depending on the
+  # mask there is the point, not a bug - if the mask is missing, that stage
+  # should fail loudly rather than silently render an empty chapter.
   germany_download_mask:
     cmd: PYTHONPATH=. \${E2S_PYTHON:-/root/earth2studio-project/.venv/bin/python} pipeline/germany/01_run.py
     deps:
       - pipeline/germany/01_run.py
     outs:
       - data/germany/pecd_population_mask_raw.nc:
+          cache: false
           persist: true
 
   germany_build_mask:
@@ -100,6 +105,25 @@ stages:
       - output/ensemble/book/z500_robinson_member00.gif:
           cache: false
       - output/ensemble/book/t2m_std_robinson.gif:
+          cache: false
+
+  germany_book_population_weighted:
+    cmd: >-
+      MPLBACKEND=Agg PYTHONPATH=$(pwd) uv run jupytext --to notebook --execute
+      --set-kernel e2s-gpu
+      --output book/notebooks/10_germany_population_weighted.ipynb
+      pipeline/germany/03_population_weighted_overview.py &&
+      uv run python pipeline/_strip_jupytext_metadata.py
+      book/notebooks/10_germany_population_weighted.ipynb
+    deps:
+      - pipeline/germany/03_population_weighted_overview.py
+      - pipeline/_strip_jupytext_metadata.py
+      - data/germany/germany_population_mask.nc
+      - output/ensemble/analysis/germany_t2m_simple_vs_popweighted.png
+    outs:
+      - book/notebooks/10_germany_population_weighted.ipynb:
+          cache: false
+      - output/germany/book/population_mask.png:
           cache: false
 
   ensemble_book_validation_report:

@@ -4,10 +4,6 @@ stages:
     cmd: PYTHONPATH=. ${E2S_PYTHON:-/root/earth2studio-project/.venv/bin/python}
       pipeline/ensemble/01_run.py
     deps:
-    - path: e2s/paths.py
-      hash: md5
-      md5: abbd132111a29473c34cbc5a8122dd30
-      size: 6610
     - path: pipeline/ensemble/01_run.py
       hash: md5
       md5: 1559fb8fa66f8d24db5d903e427fd832
@@ -15,8 +11,8 @@ stages:
     outs:
     - path: data/ensemble/fcn3_ensemble.zarr
       hash: md5
-      md5: 4fecd916ceac5af140581818a510bde1.dir
-      size: 26750684982
+      md5: f2a7b0b8ceab673bf527a63715708d1a.dir
+      size: 74155323355
       nfiles: 17939
   ensemble_validate:
     cmd: PYTHONPATH=. ${E2S_PYTHON:-/root/earth2studio-project/.venv/bin/python}
@@ -26,8 +22,8 @@ stages:
     deps:
     - path: data/ensemble/fcn3_ensemble.zarr
       hash: md5
-      md5: 4fecd916ceac5af140581818a510bde1.dir
-      size: 26750684982
+      md5: f2a7b0b8ceab673bf527a63715708d1a.dir
+      size: 74155323355
       nfiles: 17939
     - path: e2s/validation.py
       hash: md5
@@ -53,8 +49,8 @@ stages:
     deps:
     - path: data/ensemble/fcn3_ensemble.zarr
       hash: md5
-      md5: 4fecd916ceac5af140581818a510bde1.dir
-      size: 26750684982
+      md5: f2a7b0b8ceab673bf527a63715708d1a.dir
+      size: 74155323355
       nfiles: 17939
     - path: e2s/validation.py
       hash: md5
@@ -62,8 +58,8 @@ stages:
       size: 7937
     - path: pipeline/ensemble/04_analyse.py
       hash: md5
-      md5: 3b15b97e764a26163653f7a51f48d81a
-      size: 14324
+      md5: fbfcec3b1843975aad7a9af5e20d4bf7
+      size: 16293
     outs:
     - path: data/ensemble/gifs
       hash: md5
@@ -72,8 +68,8 @@ stages:
       nfiles: 25
     - path: output/ensemble/analysis
       hash: md5
-      md5: 2f0b2ae7d6928ba05d084c89b03ce4d0.dir
-      size: 358548
+      md5: 2998fbcb464b7f5c7c3981c067a9fd42.dir
+      size: 507011
       nfiles: 3
   downscaling_run:
     cmd: PYTHONPATH=. ${E2S_PYTHON:-/root/earth2studio-project/.venv/bin/python}
@@ -81,12 +77,12 @@ stages:
     deps:
     - path: pipeline/downscaling/01_run.py
       hash: md5
-      md5: 94edbd540e5830eeb32d829b966ebb95
-      size: 4494
+      md5: 0f8f30eeeb781f2a9b7f16b7592cd3e9
+      size: 5221
     outs:
     - path: data/downscaling/sfno_downscaled.zarr
       hash: md5
-      md5: df29bbc504bf196ce53336ecafb8bd06.dir
+      md5: 6619755c26cc3715aea452fe4d700e5f.dir
       size: 2073623275
       nfiles: 515
   variable_subset_compare:
@@ -130,8 +126,8 @@ stages:
     deps:
     - path: data/ensemble/fcn3_ensemble.zarr
       hash: md5
-      md5: 4fecd916ceac5af140581818a510bde1.dir
-      size: 26750684982
+      md5: f2a7b0b8ceab673bf527a63715708d1a.dir
+      size: 74155323355
       nfiles: 17939
     - path: data/ensemble/gifs
       hash: md5
@@ -157,8 +153,8 @@ stages:
     outs:
     - path: book/notebooks/05_forecast_overview.ipynb
       hash: md5
-      md5: 00476e3008d9940dfcb6965b5c449911
-      size: 11773
+      md5: e635d627f600bcedc09f07e794e78eb4
+      size: 11763
     - path: output/ensemble/book/spaghetti_t2m_munich.png
       hash: md5
       md5: 230734bcbb6f26b2d4ab39ba980311d5
@@ -202,13 +198,13 @@ stages:
       size: 540
     - path: pipeline/ensemble/06_validation_report.py
       hash: md5
-      md5: 88bb1b31ba0e3c3525cec6df8ba913e4
-      size: 4726
+      md5: 6a9668e14f491b52dc5a7aab72380196
+      size: 4909
     outs:
     - path: book/notebooks/06_validation_report.ipynb
       hash: md5
-      md5: b932ba45a67414082814d50ba9f197cb
-      size: 8776
+      md5: 99727de78d5ee321fb65c956e3528d64
+      size: 8986
   diagnostic_book_analyse:
     cmd: MPLBACKEND=Agg PYTHONPATH=$(pwd) uv run jupytext --to notebook 
       --execute --set-kernel e2s-gpu --output 
@@ -280,32 +276,28 @@ stages:
     cmd: PYTHONPATH=. ${E2S_PYTHON:-/root/earth2studio-project/.venv/bin/python}
       pipeline/germany/01_run.py
     deps:
-    - path: e2s/paths.py
-      hash: md5
-      md5: e0ea0751a02a3f41dbce3bdb3a73a2cb
-      size: 7896
     - path: pipeline/germany/01_run.py
       hash: md5
-      md5: 8a1161e168f127993793bd86916b94e1
-      size: 4683
+      md5: 2ff144fc87daca7c6bfb0aa81102bd81
+      size: 5458
     outs:
     - path: data/germany/pecd_population_mask_raw.nc
       hash: md5
-      md5: 307cea8b1df064db3d6ed6911c9c2b90
-      size: 192216
+      md5: 3fa3b490f1e9e20903fa3603c46824b3
+      size: 574373
   germany_build_mask:
     cmd: PYTHONPATH=. ${E2S_PYTHON:-/root/earth2studio-project/.venv/bin/python}
       pipeline/germany/02_build_germany_mask.py
     deps:
     - path: data/ensemble/fcn3_ensemble.zarr
       hash: md5
-      md5: 4fecd916ceac5af140581818a510bde1.dir
-      size: 26750684982
+      md5: f2a7b0b8ceab673bf527a63715708d1a.dir
+      size: 74155323355
       nfiles: 17939
     - path: data/germany/pecd_population_mask_raw.nc
       hash: md5
-      md5: 307cea8b1df064db3d6ed6911c9c2b90
-      size: 192216
+      md5: 3fa3b490f1e9e20903fa3603c46824b3
+      size: 574373
     - path: pipeline/germany/02_build_germany_mask.py
       hash: md5
       md5: f1945dcd50d65a6e084e73756c9e8371
@@ -313,7 +305,7 @@ stages:
     outs:
     - path: data/germany/germany_population_mask.nc
       hash: md5
-      md5: 4e1bf94e440793c02036915c0c623ab6
+      md5: 3519cf27960119763de47b80975c1e37
       size: 9368826
   downscaling_analyse:
     cmd: PYTHONPATH=. ${E2S_PYTHON:-/root/earth2studio-project/.venv/bin/python}
@@ -321,7 +313,7 @@ stages:
     deps:
     - path: data/downscaling/sfno_downscaled.zarr
       hash: md5
-      md5: df29bbc504bf196ce53336ecafb8bd06.dir
+      md5: 6619755c26cc3715aea452fe4d700e5f.dir
       size: 2073623275
       nfiles: 515
     - path: e2s/validation.py
@@ -330,18 +322,18 @@ stages:
       size: 7937
     - path: pipeline/downscaling/02_analyse.py
       hash: md5
-      md5: c6efa6dd9c40b6a883118689b2729ec9
-      size: 11629
+      md5: 41021c290079390224f788bec280307f
+      size: 13667
     outs:
     - path: data/downscaling/gifs
       hash: md5
-      md5: 9b603a759c2421b7c723bf1fff186e49.dir
-      size: 4686296
+      md5: e9a1fe4a01bef2d1f7ed053a3c48a0ef.dir
+      size: 1913458
       nfiles: 10
     - path: output/downscaling/analysis
       hash: md5
-      md5: 377ad3da5c1356e8bbd2b162d7bd9720.dir
-      size: 213805
+      md5: 175e3bd41e1c8369556b027139d3d916.dir
+      size: 379614
       nfiles: 3
   downscaling_book_overview:
     cmd: MPLBACKEND=Agg PYTHONPATH=$(pwd) uv run jupytext --to notebook 
@@ -353,17 +345,17 @@ stages:
     deps:
     - path: data/downscaling/gifs
       hash: md5
-      md5: 9b603a759c2421b7c723bf1fff186e49.dir
-      size: 4686296
+      md5: e9a1fe4a01bef2d1f7ed053a3c48a0ef.dir
+      size: 1913458
       nfiles: 10
     - path: output/downscaling/analysis/meteogram_t2m_munich_dense.png
       hash: md5
-      md5: ebe8535852fc1c2dcb27a07dbf318a2c
-      size: 55707
+      md5: b5cb97d430bce9b06ed54d9e521da7e1
+      size: 65890
     - path: output/downscaling/analysis/meteogram_t2m_munich_native.png
       hash: md5
-      md5: f0e9ba889200e3a6777d943b1bd7419f
-      size: 39084
+      md5: 1fc8082bc6e1c45de03a5a6910dd84da
+      size: 39371
     - path: pipeline/_strip_jupytext_metadata.py
       hash: md5
       md5: 19bb5d4de197aa76a272664affdbccdf
@@ -375,21 +367,54 @@ stages:
     outs:
     - path: book/notebooks/09_downscaling_overview.ipynb
       hash: md5
-      md5: 66579b6d57a07559a792538899d30f85
-      size: 7677
+      md5: 297655f175498abb63d204b65cf6ce57
+      size: 7668
     - path: output/downscaling/book/meteogram_t2m_munich_dense.png
       hash: md5
-      md5: ebe8535852fc1c2dcb27a07dbf318a2c
-      size: 55707
+      md5: b5cb97d430bce9b06ed54d9e521da7e1
+      size: 65890
     - path: output/downscaling/book/meteogram_t2m_munich_native.png
       hash: md5
-      md5: f0e9ba889200e3a6777d943b1bd7419f
-      size: 39084
+      md5: 1fc8082bc6e1c45de03a5a6910dd84da
+      size: 39371
     - path: output/downscaling/book/t2m_robinson_dense_member00.gif
       hash: md5
-      md5: c1584ef21c8c9742375c91878d00b557
-      size: 750141
+      md5: bfd38c691a71268f5ef7d44144b58a0a
+      size: 295897
     - path: output/downscaling/book/t2m_robinson_native_member00.gif
       hash: md5
-      md5: 4c6a92f6d06f98ac4170f8e809f8c420
-      size: 189238
+      md5: 682fe8d458142da6decc9da151884b92
+      size: 118788
+  germany_book_population_weighted:
+    cmd: MPLBACKEND=Agg PYTHONPATH=$(pwd) uv run jupytext --to notebook 
+      --execute --set-kernel e2s-gpu --output 
+      book/notebooks/10_germany_population_weighted.ipynb 
+      pipeline/germany/03_population_weighted_overview.py && uv run python 
+      pipeline/_strip_jupytext_metadata.py 
+      book/notebooks/10_germany_population_weighted.ipynb
+    deps:
+    - path: data/germany/germany_population_mask.nc
+      hash: md5
+      md5: 3519cf27960119763de47b80975c1e37
+      size: 9368826
+    - path: output/ensemble/analysis/germany_t2m_simple_vs_popweighted.png
+      hash: md5
+      md5: f2e4392b584e4cbf0dfe30e67e8cb473
+      size: 383798
+    - path: pipeline/_strip_jupytext_metadata.py
+      hash: md5
+      md5: 19bb5d4de197aa76a272664affdbccdf
+      size: 540
+    - path: pipeline/germany/03_population_weighted_overview.py
+      hash: md5
+      md5: 21032ff31f49f15a7a396fb05fecb86d
+      size: 4769
+    outs:
+    - path: book/notebooks/10_germany_population_weighted.ipynb
+      hash: md5
+      md5: 9cdb32c0107e452f34950f468a363c15
+      size: 6879
+    - path: output/germany/book/population_mask.png
+      hash: md5
+      md5: da70cfd811c3ff45a721cc183fad89d5
+      size: 124911

@@ -47,6 +47,7 @@ MUNICH_LAT, MUNICH_LON = 48.1372, 11.5755
 COLOR_MEMBER = "#6E7B8B"
 COLOR_MEAN = "#1F5C99"
 COLOR_POPWEIGHTED = "#C9622A"
+COLOR_DIFF = "#6A4C93"
 
 
 # ---------------------------------------------------------------------------
@@ -212,25 +213,61 @@ def plot_meteogram_boxplot(x_hours, data_2d, title, ylabel, out_path):
 def plot_germany_comparison(x_hours, simple_2d, popweighted_2d, title, ylabel, out_path):
     """simple_2d/popweighted_2d: shape (n_lead_time, n_ensemble) - both
     computed from the same forecast array via global_mean() with
-    different weight fields, so there's no separate random draw between
-    them to keep in sync (see load_germany_weights' docstring)."""
-    fig, ax = plt.subplots(figsize=(14, 5))
+    different weight fields, member-for-member aligned (ensemble index i
+    is the same underlying forecast draw in both), so their difference
+    below is a genuine per-member difference, not a comparison across
+    unrelated samples (see load_germany_weights' docstring).
 
-    def band(data_2d, color, label):
+    Three rows: (1) both means overlaid with no band, so the (usually
+    small) gap between weightings is readable without band-on-band
+    overlap muddying the color; (2) each weighting on its own axis with
+    its own mean + ensemble min-max range, so within-weighting spread
+    isn't conflated with between-weighting spread; (3) the per-member
+    difference (population-weighted minus area-weighted), mean line plus
+    its own range - shows whether that gap is consistent across the
+    ensemble or itself uncertain.
+    """
+    diff_2d = popweighted_2d - simple_2d
+
+    fig = plt.figure(figsize=(14, 12))
+    gs = fig.add_gridspec(3, 2, height_ratios=[1, 1, 1], hspace=0.5, wspace=0.15)
+    ax_combined = fig.add_subplot(gs[0, :])
+    ax_simple = fig.add_subplot(gs[1, 0])
+    ax_pop = fig.add_subplot(gs[1, 1], sharey=ax_simple)
+    ax_diff = fig.add_subplot(gs[2, :])
+
+    def band(ax, data_2d, color, label, show_band=True):
         mean = data_2d.mean(axis=1)
-        ax.fill_between(x_hours, data_2d.min(axis=1), data_2d.max(axis=1), color=color, alpha=0.15)
+        if show_band:
+            ax.fill_between(x_hours, data_2d.min(axis=1), data_2d.max(axis=1), color=color, alpha=0.15)
         ax.plot(x_hours, mean, color=color, linewidth=2.2, label=label)
 
-    band(simple_2d, COLOR_MEAN, "Area-weighted mean")
-    band(popweighted_2d, COLOR_POPWEIGHTED, "Population-weighted mean")
+    band(ax_combined, simple_2d, COLOR_MEAN, "Area-weighted mean", show_band=False)
+    band(ax_combined, popweighted_2d, COLOR_POPWEIGHTED, "Population-weighted mean", show_band=False)
+    ax_combined.set_title(title)
+    ax_combined.set_ylabel(ylabel)
+    ax_combined.legend(loc="best")
 
-    ax.set_xlabel("Lead time (hours since UTC init)")
-    ax.set_ylabel(ylabel)
-    ax.set_title(title)
-    ax.legend(loc="best")
-    ax.grid(True, color="#DDDDDD", linewidth=0.6)
-    fig.tight_layout()
-    fig.savefig(out_path, dpi=150)
+    band(ax_simple, simple_2d, COLOR_MEAN, "Area-weighted mean")
+    ax_simple.set_title("Area-weighted: mean + ensemble range")
+    ax_simple.set_ylabel(ylabel)
+
+    band(ax_pop, popweighted_2d, COLOR_POPWEIGHTED, "Population-weighted mean")
+    ax_pop.set_title("Population-weighted: mean + ensemble range")
+    plt.setp(ax_pop.get_yticklabels(), visible=False)
+
+    diff_mean = diff_2d.mean(axis=1)
+    ax_diff.fill_between(x_hours, diff_2d.min(axis=1), diff_2d.max(axis=1), color=COLOR_DIFF, alpha=0.2)
+    ax_diff.plot(x_hours, diff_mean, color=COLOR_DIFF, linewidth=2.2)
+    ax_diff.axhline(0, color="#888888", linewidth=0.8, linestyle="--")
+    ax_diff.set_title("Difference: population-weighted minus area-weighted (per member)")
+    ax_diff.set_ylabel(f"Δ {ylabel}")
+
+    for ax in (ax_combined, ax_simple, ax_pop, ax_diff):
+        ax.set_xlabel("Lead time (hours since UTC init)")
+        ax.grid(True, color="#DDDDDD", linewidth=0.6)
+
+    fig.savefig(out_path, dpi=150, bbox_inches="tight")
     plt.close(fig)
 
 
