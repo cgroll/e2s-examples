@@ -11,15 +11,33 @@
     <loc>http://localhost:3000/notebooks/validation-report</loc>
   </url>
   <url>
-    <loc>http://localhost:3000/notebooks/germany-population-weighted</loc>
+    <loc>http://localhost:3000/notebooks/perturbation-sweep</loc>
   </url>
   <url>
-    <loc>http://localhost:3000/notebooks/downscaling-overview</loc>
+    <loc>http://localhost:3000/notebooks/perturbation-zero</loc>
+  </url>
+  <url>
+    <loc>http://localhost:3000/notebooks/perturbation-brown-0-05</loc>
+  </url>
+  <url>
+    <loc>http://localhost:3000/notebooks/perturbation-brown-0-01</loc>
+  </url>
+  <url>
+    <loc>http://localhost:3000/notebooks/perturbation-brown-0-002</loc>
+  </url>
+  <url>
+    <loc>http://localhost:3000/notebooks/perturbation-gaussian-0-05</loc>
+  </url>
+  <url>
+    <loc>http://localhost:3000/notebooks/germany-population-weighted</loc>
   </url>
   <url>
     <loc>http://localhost:3000/notebooks/diagnostic-solar-radiation</loc>
   </url>
   <url>
     <loc>http://localhost:3000/notebooks/variable-subset-report</loc>
+  </url>
+  <url>
+    <loc>http://localhost:3000/notebooks/downscaling-overview</loc>
   </url>
 </urlset>
