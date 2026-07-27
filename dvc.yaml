@@ -415,3 +415,41 @@ stages:
     outs:
       - book/notebooks/17_perturbation_bred_vector.ipynb:
           cache: false
+
+  perturbation_book_z500_brown_200:
+    cmd: >-
+      MPLBACKEND=Agg PYTHONPATH=$(pwd) uv run jupytext --to notebook --execute
+      --set-kernel e2s-gpu
+      --output book/notebooks/18_perturbation_z500_brown_200.ipynb
+      pipeline/perturbation/10_config_z500_brown_200.py &&
+      uv run python pipeline/_strip_jupytext_metadata.py
+      book/notebooks/18_perturbation_z500_brown_200.ipynb
+    deps:
+      - pipeline/perturbation/10_config_z500_brown_200.py
+      - pipeline/_strip_jupytext_metadata.py
+      - output/perturbation/analysis/z500_brown_200_dashboard.png
+      - output/perturbation/analysis/z500_brown_200_mean_std.gif
+      - output/perturbation/analysis/z500_brown_200_meteogram_t2m_munich.png
+      - output/perturbation/analysis/z500_brown_200_meteogram_wind10m_munich.png
+    outs:
+      - book/notebooks/18_perturbation_z500_brown_200.ipynb:
+          cache: false
+
+  perturbation_book_robustness_season:
+    cmd: >-
+      MPLBACKEND=Agg PYTHONPATH=$(pwd) uv run jupytext --to notebook --execute
+      --set-kernel e2s-gpu
+      --output book/notebooks/19_perturbation_robustness_season.ipynb
+      pipeline/perturbation/11_robustness_season.py &&
+      uv run python pipeline/_strip_jupytext_metadata.py
+      book/notebooks/19_perturbation_robustness_season.ipynb
+    deps:
+      - pipeline/perturbation/11_robustness_season.py
+      - pipeline/_strip_jupytext_metadata.py
+      - output/perturbation/metrics/zero_bounds.csv
+      - output/perturbation/metrics/zero_winter_bounds.csv
+      - output/perturbation/metrics/bred_vector_bounds.csv
+      - output/perturbation/metrics/bred_vector_winter_bounds.csv
+    outs:
+      - book/notebooks/19_perturbation_robustness_season.ipynb:
+          cache: false

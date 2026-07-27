@@ -17,20 +17,24 @@
 # first, before picking a perturbation strategy: does SFNO even tolerate
 # noise added to its initial condition, and at what amplitude?
 #
-# It runs SFNO under six configurations - `zero` (no perturbation, the
+# It runs SFNO under seven configurations - `zero` (no perturbation, the
 # deterministic baseline), `Brown`/`Gaussian` static noise at several
-# amplitudes, and `bred_vector` (grows the perturbation via the model
-# itself rather than injecting a static offset) - each with one always-
-# `Zero()` control member (member 0) to anchor comparisons against, and
-# validates every step against this project's physical-plausibility
-# bounds table (`e2s.validation.bounds_for`, the same one `pipeline/
-# ensemble/02_validate.py` runs against FCN3) rather than only inspecting
-# the final result. Each config also gets its own dedicated chapter (next
-# in this section) with a full diagnostic breakdown: which members are
-# affected, which variables, whether it's immediate or gradual, and
-# whether it's just absolute physical bounds or the *relative*
-# consistency between variables (and energy/mass conservation) that
-# breaks down.
+# amplitudes applied to all 73 variables, `bred_vector` (grows the
+# perturbation via the model itself rather than injecting a static
+# offset), and `z500_brown_200` (`Brown` noise applied to a single
+# variable, at an amplitude scaled to that variable's own physical
+# magnitude) - each with one always-`Zero()` control member (member 0) to
+# anchor comparisons against, and validates every step against this
+# project's physical-plausibility bounds table (`e2s.validation.
+# bounds_for`, the same one `pipeline/ensemble/02_validate.py` runs
+# against FCN3) rather than only inspecting the final result. Each config
+# also gets its own dedicated chapter (next in this section) with a full
+# diagnostic breakdown: which members are affected, which variables,
+# whether it's immediate or gradual, and whether it's just absolute
+# physical bounds or the *relative* consistency between variables (and
+# energy/mass conservation) that breaks down. A final chapter checks
+# whether the two most load-bearing results (`zero` and `bred_vector`)
+# hold up under a different season's initial condition.
 #
 # See `pipeline/perturbation/01_run.py`'s module docstring for the full
 # methodology, including why the check is metrics-only rather than a
@@ -48,7 +52,7 @@ from e2s.paths import ProjPaths
 paths = ProjPaths()
 paths.ensure_directories()
 
-CONFIG_NAMES = ["zero", "brown_0.05", "brown_0.01", "brown_0.002", "gaussian_0.05", "bred_vector"]
+CONFIG_NAMES = ["zero", "brown_0.05", "brown_0.01", "brown_0.002", "gaussian_0.05", "bred_vector", "z500_brown_200"]
 
 # %% [markdown]
 # ## Summary: worst-variable violating fraction at the end of the rollout
@@ -90,8 +94,10 @@ print(summary.round(4))
 # noise-floor scale, while `t2m`, z-level ordering, kinetic energy, and
 # mass conservation all stay clean. The `bred_vector` chapter has the
 # full picture; don't read this table's single column in isolation for
-# that config.
+# that config. `z500_brown_200` sits right at the `zero` baseline - the
+# cleanest result in the sweep, with no side effects at all.
 #
-# The next six chapters give each config its own full breakdown -
+# The next seven chapters give each config its own full breakdown -
 # per-member, per-variable, cross-variable ordering, and energy/mass
-# conservation over the rollout.
+# conservation over the rollout - followed by a season-robustness check
+# on the two most load-bearing results.

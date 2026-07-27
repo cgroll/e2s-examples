@@ -166,6 +166,34 @@ Z_LEVELS = sorted(
     if (m := re.match(r"^z(\d+)$", name))
 )
 
+class SingleVariablePerturbation:
+    """Wraps a base perturbation (e.g. Brown) and applies it to only one
+    named variable's channel, leaving every other variable exactly at its
+    raw IC value. Tests a specific hypothesis from the earlier sweep:
+    Brown/Gaussian's flat noise_amplitude=0.05 is negligible for z500
+    (~55000 m^2/s^2 scale) and catastrophic for e.g. u10m (~1.3 m/s scale)
+    when applied to all 73 variables at once - so the amplitude was never
+    actually "small" in any variable-appropriate sense for most of the
+    state. Perturbing z500 alone, at an amplitude chosen relative to its
+    own scale (tens to hundreds of m^2/s^2, not 0.05), isolates whether a
+    properly-scaled single-variable perturbation is more tolerable, or
+    whether SFNO is just broadly intolerant of any IC deviation from an
+    unperturbed analysis regardless of which variable it's in."""
+
+    def __init__(self, variable_name, base_perturbation):
+        self.variable_name = variable_name
+        self.base_perturbation = base_perturbation
+
+    def __call__(self, x, coords):
+        x_perturbed, coords = self.base_perturbation(x, coords)
+        var_names = list(coords["variable"])
+        var_axis = list(coords.keys()).index("variable")
+        idx = var_names.index(self.variable_name)
+        out = x.clone()
+        out.select(var_axis, idx).copy_(x_perturbed.select(var_axis, idx))
+        return out, coords
+
+
 # See module docstring for why brown_0.05 (earth2studio's own default
 # amplitude, and downscaling/01_run.py's current choice) is deliberately
 # included here even though we already know it breaks SFNO+InterpModAFNO.
@@ -179,6 +207,25 @@ CONFIGS = {
         model=model, noise_amplitude=0.05,
         seeding_perturbation_method=Brown(noise_amplitude=0.002),
     ),
+    "z500_brown_200": SingleVariablePerturbation("z500", Brown(noise_amplitude=200.0)),
+    # Robustness check: same two most-informative configs (the clean
+    # deterministic baseline, and the one method that worked), rerun
+    # under a different season's initial condition - tests whether the
+    # baseline tcwv/humidity idiosyncrasy documented throughout this
+    # sweep is a property of this specific date or of SFNO generally.
+    "zero_winter": Zero(),
+    "bred_vector_winter": BredVector(
+        model=model, noise_amplitude=0.05,
+        seeding_perturbation_method=Brown(noise_amplitude=0.002),
+    ),
+}
+
+# Only the two "_winter" configs use a different initial condition date
+# (2026-01-15, northern-hemisphere winter, vs. the sweep's usual
+# 2026-07-23) - see the comment above CONFIGS.
+START_DATE_OVERRIDES = {
+    "zero_winter": "2026-01-15T00:00:00",
+    "bred_vector_winter": "2026-01-15T00:00:00",
 }
 
 
@@ -367,11 +414,12 @@ def run_config(name, cfg_perturbation):
     if zarr_path.exists():
         print(f"[SKIP] {name}: {zarr_path} already exists.")
         return
-    print(f"\n=== {name} ===")
+    start_date = START_DATE_OVERRIDES.get(name, START_DATE)
+    print(f"\n=== {name} (start_date={start_date}) ===")
     io = ZarrBackend(str(zarr_path))
 
     prognostic_ic = model.input_coords()
-    time = to_time_array([START_DATE])
+    time = to_time_array([start_date])
     x0, coords0 = fetch_data(
         source=data, time=time, variable=prognostic_ic["variable"],
         lead_time=prognostic_ic["lead_time"], device=device,

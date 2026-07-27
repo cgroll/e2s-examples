@@ -31,7 +31,10 @@ MUNICH_LAT, MUNICH_LON = 48.1372, 11.5755
 # Matches 01_run.py's NAE_LON_MIN/MAX/NAE_LAT_MIN/MAX exactly.
 NAE_EXTENT = [-80.0, 40.0, 30.0, 90.0]  # lon_min, lon_max, lat_min, lat_max
 
-CONFIG_NAMES = ["zero", "brown_0.05", "brown_0.01", "brown_0.002", "gaussian_0.05", "bred_vector"]
+CONFIG_NAMES = [
+    "zero", "brown_0.05", "brown_0.01", "brown_0.002", "gaussian_0.05", "bred_vector",
+    "z500_brown_200", "zero_winter", "bred_vector_winter",
+]
 
 COLOR_MEMBER = "#6E7B8B"
 COLOR_MEAN = "#1F5C99"
