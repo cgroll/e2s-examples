@@ -418,3 +418,54 @@ stages:
       hash: md5
       md5: da70cfd811c3ff45a721cc183fad89d5
       size: 124911
+  perturbation_run:
+    cmd: PYTHONPATH=. ${E2S_PYTHON:-/root/earth2studio-project/.venv/bin/python}
+      pipeline/perturbation/01_run.py
+    deps:
+    - path: e2s/validation.py
+      hash: md5
+      md5: 8b084622c89fd4ea3d8ab9e414254102
+      size: 7937
+    - path: pipeline/perturbation/01_run.py
+      hash: md5
+      md5: a8885f55b2d627415e3a90dcd2394cff
+      size: 15922
+    outs:
+    - path: data/perturbation
+      hash: md5
+      md5: dddb3d91f284e02a26269346db01d3b0.dir
+      size: 779047725
+      nfiles: 1755
+    - path: output/perturbation/metrics
+      hash: md5
+      md5: 567f60181145f89a31df04948e334941.dir
+      size: 2706585
+      nfiles: 10
+  perturbation_analyse:
+    cmd: PYTHONPATH=. ${E2S_PYTHON:-/root/earth2studio-project/.venv/bin/python}
+      pipeline/perturbation/02_analyse.py
+    deps:
+    - path: data/perturbation
+      hash: md5
+      md5: dddb3d91f284e02a26269346db01d3b0.dir
+      size: 779047725
+      nfiles: 1755
+    - path: e2s/validation.py
+      hash: md5
+      md5: 8b084622c89fd4ea3d8ab9e414254102
+      size: 7937
+    - path: output/perturbation/metrics
+      hash: md5
+      md5: 567f60181145f89a31df04948e334941.dir
+      size: 2706585
+      nfiles: 10
+    - path: pipeline/perturbation/02_analyse.py
+      hash: md5
+      md5: e709c599bc3dd19a6ae2ce0645c19d40
+      size: 9960
+    outs:
+    - path: output/perturbation/analysis
+      hash: md5
+      md5: 6f9ee7b9aeac330da263ec6df38aaafb.dir
+      size: 9717775
+      nfiles: 16

@@ -1,123 +1,277 @@
-"""Compare ensemble-generation strategies for FCN3: perturbations applied
-once to the initial condition (static noise, or dynamically "bred" via
-short pre-rollout model integration) vs. a perturbation injected at
-*every* step of the actual forecast rollout.
+"""Compare IC-perturbation strategies for SFNO, with per-step physical-
+bounds validation (blow-up detection) and output cropped to the North-
+Atlantic-European (NAE) region (Grams et al.: 80W-40E, 30-90N) to keep
+storage lean.
 
-earth2studio.run.ensemble() calls its `perturbation` argument exactly
-once, right before the rollout starts (see run.py: `x, coords =
-perturbation(x, coords)`, called before `prognostic.create_iterator(...)`)
-- none of the built-in Perturbation classes touch the state again once
-the rollout is running. This holds even for the "Bred Vector" methods
-(BredVector, HemisphericCentredBredVector): they *do* iterate the model
-internally to grow a flow-consistent perturbation, but that breeding
-happens before the rollout starts, seeding a single IC perturbation -
-still one call from run.ensemble()'s perspective, just a more elaborate
-one than IID noise.
+Why this exists: pipeline/downscaling/01_run.py wraps SFNO in
+InterpModAFNO and perturbs the IC with Brown(noise_amplitude=0.05) - and
+that combination blows up from the very first native SFNO step (t2m/z500/
+u10m/v10m all diverge to unphysical magnitudes; see the "Population-
+weighted temperature"/downscaling-chapter investigation this script
+followed from). This experiment isolates the question "does SFNO itself
+tolerate IC perturbation, and at what amplitude" from the added
+complexity of the interpolation wrapper, by running bare SFNO (no
+InterpModAFNO) directly.
 
-True per-step perturbation therefore needs a hand-rolled rollout loop
-(run_per_step below), calling the model's __call__ directly (one
-autoregressive step, returns the next state) instead of
-create_iterator() (an opaque generator that owns its internal state
-end-to-end and can't be interrupted to modify x mid-rollout) - see
-PrognosticModel.__call__ vs .create_iterator() in
-earth2studio/models/px/base.py. run_per_step reimplements the relevant
-slice of run.ensemble()'s internals (fetch_data + io.add_array + batched
-rollout) to do this; checkpointing/resume, which the built-in workflow
-supports, is intentionally left out - not needed for this comparison.
+Trimmed config sweep for this first pass (not the full comparison
+pipeline/ensemble's dormant sibling script sweeps for FCN3): reproduce
+the exact blow-up config (brown_0.05) against bare SFNO first - if it
+still blows up without InterpModAFNO in the loop, that rules out the
+interpolation wrapper as the cause - then two smaller Brown amplitudes to
+find where stability returns, plus one IID Gaussian at the original
+amplitude for comparison against Brown's spatially-correlated noise.
 
-Reduced ensemble size/rollout length vs. pipeline/ensemble/01_run.py (4
-members, 20 steps rather than 8/30): 7 configurations run back to back
-here, so this keeps total GPU time roughly comparable to one run of the
-main ensemble pipeline instead of ~7x it.
+Per-step validation: earth2studio's run.ensemble() applies its
+perturbation exactly once and owns the rollout loop opaquely (see
+earth2studio/run.py: perturbation is called once before
+prognostic.create_iterator(...) starts) - it can't be paused to inspect
+state mid-rollout. So every config here goes through a hand-rolled
+autoregressive loop (calling model(x, coords) directly, one step at a
+time) instead of run.ensemble(), the same pattern
+pipeline/perturbation's earlier FCN3 version used only for its
+per-step-injection config. After every step, the model's FULL global
+state (all 73 variables) is scored against e2s.validation's physical-
+plausibility bounds - cheap (just min/max/violating-fraction per
+variable, done on-GPU) - so a violation is caught wherever it first
+appears, even though only t2m/u10m/v10m/z500 over the NAE region are
+actually persisted as field data.
+
+Deliberately NOT a hard stop-on-violation gate: an earlier version of
+this script froze a member's rollout the moment any variable left its
+bounds, but that turned out to fire on step 1 for every config -
+including the unperturbed Zero() control - because SFNO's raw tcwv
+output is mildly negative (down to ~-5.5 kg/m2) across ~7% of the global
+grid even with no perturbation at all, unlike FCN3 (which passes this
+exact bounds table with zero violations - see
+pipeline/ensemble/02_validate.py). A single-bit gate can't distinguish
+that baseline idiosyncrasy from genuine catastrophic divergence. So
+instead every member runs its full rollout regardless, and every step's
+per-variable bounds metrics (violating_fraction, min, max - same schema
+as 02_validate.py's build_standalone_variable_table) are written to a
+CSV per config. Which members/steps to treat as "blown up" is a
+post-hoc analysis question (02_analyse.py), not a during-inference one.
+
+Member 0 is always run with Zero() perturbation regardless of config - a
+config-agnostic control trajectory (SFNO is deterministic without
+perturbation, so this is the same physical forecast every time) to
+anchor comparisons (meteograms, gifs) against, even for configs where
+every other member is perturbed.
+
+Per-step injection (like the FCN3 script's per_step_brown) is
+deliberately left out of this first pass - all five configs below are
+IC-only. Can be added later following the same manual-loop pattern if
+the IC-only sweep turns out inconclusive.
 """
 
 import numpy as np
+import pandas as pd
 import torch
 
 from earth2studio.data import GFS, fetch_data
 from earth2studio.io import ZarrBackend
-from earth2studio.models.px import FCN3
-from earth2studio.perturbation import (
-    BredVector,
-    Brown,
-    Gaussian,
-    HemisphericCentredBredVector,
-    SphericalGaussian,
-    Zero,
-)
-from earth2studio.run import ensemble as run_ensemble
+from earth2studio.models.px import SFNO
+from earth2studio.perturbation import Brown, Gaussian, Zero
 from earth2studio.utils.coords import map_coords, split_coords
 from earth2studio.utils.time import to_time_array
 
 from e2s.paths import ProjPaths
+from e2s.validation import bounds_for
 
 paths = ProjPaths()
 paths.ensure_directories()
 
-N_ENSEMBLE = 4
-N_STEPS = 20
-START_DATE = "2026-07-23T00:00:00"  # UTC - GFS timestamps are always UTC
-N_BATCH_SIZE = 2
+# --- Compat shim: see pipeline/downscaling/01_run.py's identical block for
+# why makani (pinned commit d473b054) needs this patched onto SFNO.load_model.
+import makani.models.model_registry as _makani_model_registry
 
-NOISE_AMPLITUDE = 0.05  # earth2studio's own default for Gaussian/Brown/BredVector
-# Smaller than NOISE_AMPLITUDE: this one is injected fresh at every one of
-# N_STEPS steps rather than just once, so it accumulates over the rollout -
-# using the same amplitude as the IC-only methods would very likely blow
-# the rollout up.
-PER_STEP_NOISE_AMPLITUDE = 0.01
+_original_get_model = _makani_model_registry.get_model
+
+
+def _get_model_compat(params, *args, **kwargs):
+    if not hasattr(params, "img_shape_x_resampled"):
+        params.img_shape_x_resampled = params.img_shape_x
+    if not hasattr(params, "img_shape_y_resampled"):
+        params.img_shape_y_resampled = params.img_shape_y
+    return _original_get_model(params, *args, **kwargs)
+
+
+_makani_model_registry.get_model = _get_model_compat
+
+N_ENSEMBLE = 4
+N_STEPS = 20  # native 6h SFNO steps -> 20 = 5 days
+START_DATE = "2026-07-23T00:00:00"  # UTC - GFS timestamps are always UTC, matches the other experiments' START_DATE
+
+# North-Atlantic-European region (Grams et al.): 80W-40E, 30-90N. Only
+# used to crop what gets *persisted* below - the bounds check runs on the
+# full global state regardless, so a blow-up outside this box is still
+# caught (see check_bounds).
+NAE_LON_MIN, NAE_LON_MAX = -80.0, 40.0  # deg, -180..180 convention
+NAE_LAT_MIN, NAE_LAT_MAX = 30.0, 90.0
+
+STORED_VARIABLES = ["t2m", "u10m", "v10m", "z500"]
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-print("Loading FCN3 model weights...")
-package = FCN3.load_default_package()
-model = FCN3.load_model(package).to(device)
+print("Loading SFNO model weights...")
+package = SFNO.load_default_package()
+model = SFNO.load_model(package).to(device)
 
 data = GFS()
 
-# Perturbation methods usable directly with earth2studio's built-in
-# run.ensemble() workflow - it applies each of these exactly once, to the
-# initial condition, before the rollout starts. Covers both categories
-# that only differ in *how* that single IC perturbation is constructed:
-# static noise (zero/gaussian/brown/spherical_gaussian) and bred-vector
-# methods (bred_vector/hemispheric_bred_vector), which use the model
-# itself, iteratively, to grow a flow-consistent perturbation beforehand.
-STANDARD_CONFIGS = {
+# Precomputed once (static across the whole sweep - same model, same
+# variable list every step) rather than re-resolved via bounds_for()'s
+# regex matching on every single step.
+VAR_BOUNDS = {name: bounds_for(name)[0] for name in model.input_coords()["variable"]}
+
+# See module docstring for why brown_0.05 (earth2studio's own default
+# amplitude, and downscaling/01_run.py's current choice) is deliberately
+# included here even though we already know it breaks SFNO+InterpModAFNO.
+CONFIGS = {
     "zero": Zero(),
-    "gaussian": Gaussian(noise_amplitude=NOISE_AMPLITUDE, seed=0),
-    "brown": Brown(noise_amplitude=NOISE_AMPLITUDE),
-    "spherical_gaussian": SphericalGaussian(noise_amplitude=NOISE_AMPLITUDE),
-    "bred_vector": BredVector(
-        model=model, noise_amplitude=NOISE_AMPLITUDE,
-        seeding_perturbation_method=Brown(noise_amplitude=NOISE_AMPLITUDE),
-    ),
-    "hemispheric_bred_vector": HemisphericCentredBredVector(
-        model=model, data=data,
-        seeding_perturbation_method=Brown(noise_amplitude=NOISE_AMPLITUDE),
-    ),
+    "brown_0.05": Brown(noise_amplitude=0.05),
+    "brown_0.01": Brown(noise_amplitude=0.01),
+    "brown_0.002": Brown(noise_amplitude=0.002),
+    "gaussian_0.05": Gaussian(noise_amplitude=0.05, seed=0),
 }
 
 
-def run_standard(name, perturbation):
-    zarr_path = paths.perturbation_zarr_path(name)
-    print(f"\n=== {name}: IC-only perturbation via run.ensemble ===")
-    io = ZarrBackend(str(zarr_path))
-    run_ensemble(
-        time=[START_DATE], nsteps=N_STEPS, nensemble=N_ENSEMBLE,
-        prognostic=model, data=data, io=io, perturbation=perturbation,
-        batch_size=N_BATCH_SIZE, device=device,
-    )
-    print(f"Saved '{name}' to {zarr_path}")
+def nae_crop_masks(lat, lon):
+    """Boolean masks selecting the NAE box on SFNO's native grid. Lon is
+    0..360 on this grid, and -80..40 straddles the 0/360 seam (i.e. maps
+    to the union of 280..360 and 0..40), so a plain min/max slice would
+    silently select the wrong (complementary) region - normalize to
+    -180..180 first instead."""
+    lat_mask = (lat >= NAE_LAT_MIN) & (lat <= NAE_LAT_MAX)
+    lon_pm180 = np.where(lon > 180, lon - 360, lon)
+    lon_mask = (lon_pm180 >= NAE_LON_MIN) & (lon_pm180 <= NAE_LON_MAX)
+    return lat_mask, lon_mask
 
 
-def run_per_step(name, step_perturbation):
-    """Custom rollout: no IC perturbation at all by design (all members
-    start from the identical, unperturbed analysis state), so any
-    ensemble spread that emerges comes entirely from step_perturbation
-    being re-applied after every one of the N_STEPS autoregressive
-    steps - isolating what per-step injection alone contributes to
-    spread growth, uncontaminated by a head start at t=0."""
+def bounds_metrics_rows(x, coords, config_name, member_id, step, lead_time_hours_val):
+    """Per-variable bounds metrics for one (config, member, step) - same
+    schema as pipeline/ensemble/02_validate.py's
+    build_standalone_variable_table (min/max/violating_fraction), applied
+    to the FULL global state (all 73 variables, not just
+    STORED_VARIABLES) so a violation is caught regardless of which
+    variable it first appears in. Stays on-GPU except the final scalar
+    .item() calls. Does not gate anything - see module docstring for why
+    this is metrics-only, not a during-inference stop condition."""
+    var_names = list(coords["variable"])
+    var_axis = list(coords.keys()).index("variable")
+    n_total = x.numel() // len(var_names)
+
+    rows = []
+    for i, name in enumerate(var_names):
+        bounds = VAR_BOUNDS.get(name)
+        values = x.select(var_axis, i)
+        finite = torch.isfinite(values)
+        if bounds is None:
+            bad = ~finite
+        else:
+            lo, hi = bounds
+            bad = ~finite | (values < lo) | (values > hi)
+        n_bad = int(bad.sum().item())
+        finite_values = values[finite]
+        rows.append({
+            "config": config_name,
+            "member": member_id,
+            "step": step,
+            "lead_time_hours": lead_time_hours_val,
+            "variable": name,
+            "min_value": finite_values.min().item() if finite_values.numel() else float("nan"),
+            "max_value": finite_values.max().item() if finite_values.numel() else float("nan"),
+            "n_bad_points": n_bad,
+            "n_total_points": n_total,
+            "violating_fraction": n_bad / n_total,
+        })
+    return rows
+
+
+def _area_weighted_mean(field, lat_axis, lon_axis, lat_weight):
+    """Area-weighted (cos-latitude) global mean of a single (..., lat,
+    lon, ...) field - same weighting convention as
+    e2s.validation.area_weights/global_mean (weight varies only by lat,
+    normalized so weight.mean() == 1), reimplemented directly on torch
+    tensors to avoid an xarray round-trip on every step."""
+    zonal = field.mean(dim=lon_axis)
+    w_shape = [1] * zonal.ndim
+    w_shape[lat_axis] = -1
+    weighted = (zonal * lat_weight.reshape(w_shape)).sum(dim=lat_axis) / lat_weight.sum()
+    return weighted.item()
+
+
+# Global-mean scalars tracked every step - same quantities
+# pipeline/ensemble/02_validate.py's cross-time checks use (STEP_JUMP_LIMITS'
+# t2m/msl/tcwv/z500, mass_conservation's msl/sp, energy_blowup's kinetic
+# energy from u10m/v10m), computed incrementally here instead of by
+# reloading the full field afterward.
+GLOBAL_MEAN_SIMPLE_VARS = ["t2m", "msl", "sp", "tcwv", "z500"]
+
+
+def global_mean_metrics_row(x, coords, config_name, member_id, step, lead_time_hours_val):
+    """One row of area-weighted global-mean scalars for this (config,
+    member, step) - cheap (a handful of numbers), so kept for every step
+    of every member rather than needing the full field data to
+    reconstruct these later."""
+    keys = list(coords.keys())
+    var_axis, lat_axis, lon_axis = keys.index("variable"), keys.index("lat"), keys.index("lon")
+    var_names = list(coords["variable"])
+    lat = torch.as_tensor(coords["lat"], device=x.device, dtype=x.dtype)
+    w = torch.cos(torch.deg2rad(lat))
+    w = w / w.mean()
+    # Selecting out var_axis (< lat_axis/lon_axis in this project's fixed
+    # coords ordering) shifts lat/lon down by exactly one each - see
+    # select_stored's docstring for the same ordering assumption.
+    field_lat_axis, field_lon_axis = lat_axis - 1, lon_axis - 1
+
+    row = {
+        "config": config_name, "member": member_id, "step": step,
+        "lead_time_hours": lead_time_hours_val,
+    }
+    for name in GLOBAL_MEAN_SIMPLE_VARS:
+        if name in var_names:
+            field = x.select(var_axis, var_names.index(name))
+            row[f"global_mean_{name}"] = _area_weighted_mean(field, field_lat_axis, field_lon_axis, w)
+
+    if "u10m" in var_names and "v10m" in var_names:
+        u = x.select(var_axis, var_names.index("u10m"))
+        v = x.select(var_axis, var_names.index("v10m"))
+        ke_field = 0.5 * (u**2 + v**2)
+        row["global_mean_kinetic_energy"] = _area_weighted_mean(ke_field, field_lat_axis, field_lon_axis, w)
+
+    return row
+
+
+def select_stored(x, coords, lat_mask, lon_mask):
+    """Subset x/coords down to STORED_VARIABLES, cropped to the NAE
+    region - the only thing that actually gets written to disk. Relies
+    on earth2studio's convention that a coords dict's key order matches
+    x's dim order exactly (see e.g. the existing per-step rollout this
+    was adapted from, which relies on the same ordering via
+    total_coords.move_to_end calls)."""
+    var_names = list(coords["variable"])
+    var_idx = [var_names.index(v) for v in STORED_VARIABLES]
+    keys = list(coords.keys())
+    var_axis, lat_axis, lon_axis = keys.index("variable"), keys.index("lat"), keys.index("lon")
+
+    x = x.index_select(var_axis, torch.tensor(var_idx, device=x.device))
+    lat_idx = torch.tensor(np.nonzero(lat_mask)[0], device=x.device)
+    lon_idx = torch.tensor(np.nonzero(lon_mask)[0], device=x.device)
+    x = x.index_select(lat_axis, lat_idx).index_select(lon_axis, lon_idx)
+
+    coords = dict(coords)
+    coords["variable"] = np.array(STORED_VARIABLES)
+    coords["lat"] = coords["lat"][lat_mask]
+    coords["lon"] = coords["lon"][lon_mask]
+    return x, coords
+
+
+def run_config(name, cfg_perturbation):
     zarr_path = paths.perturbation_zarr_path(name)
-    print(f"\n=== {name}: perturbation injected at every step ===")
+    if zarr_path.exists():
+        print(f"[SKIP] {name}: {zarr_path} already exists.")
+        return
+    print(f"\n=== {name} ===")
     io = ZarrBackend(str(zarr_path))
 
     prognostic_ic = model.input_coords()
@@ -127,47 +281,66 @@ def run_per_step(name, step_perturbation):
         lead_time=prognostic_ic["lead_time"], device=device,
     )
 
-    # Pre-allocate the zarr's full coordinate system - mirrors
-    # earth2studio.run.ensemble()'s own setup (see run.py) so this store
-    # has the same schema (ensemble/time/lead_time/variable/lat/lon) as
-    # the ones written by run_standard() above.
-    total_coords = model.output_coords(model.input_coords()).copy()
-    if "batch" in total_coords:
-        del total_coords["batch"]
-    total_coords["time"] = time
-    total_coords["lead_time"] = np.asarray(
+    native_coords = model.output_coords(model.input_coords())
+    lat_mask, lon_mask = nae_crop_masks(native_coords["lat"], native_coords["lon"])
+    cropped_lat = native_coords["lat"][lat_mask]
+    cropped_lon = native_coords["lon"][lon_mask]
+
+    lead_time_out = np.asarray(
         [model.output_coords(model.input_coords())["lead_time"] * i for i in range(N_STEPS + 1)]
     ).flatten()
-    total_coords.move_to_end("lead_time", last=False)
-    total_coords.move_to_end("time", last=False)
-    total_coords = {"ensemble": np.arange(N_ENSEMBLE)} | total_coords
-    variables_to_save = total_coords.pop("variable")
-    io.add_array(total_coords, variables_to_save)
 
-    batch_size = min(N_ENSEMBLE, N_BATCH_SIZE)
-    for batch_id in range(0, N_ENSEMBLE, batch_size):
-        mini_batch_size = min(batch_size, N_ENSEMBLE - batch_id)
-        ensemble_coords = np.arange(batch_id, batch_id + mini_batch_size)
-        print(f"Running batch starting at member {batch_id} ({mini_batch_size} members)...")
+    total_coords = {
+        "ensemble": np.arange(N_ENSEMBLE),
+        "time": time,
+        "lead_time": lead_time_out,
+        "lat": cropped_lat,
+        "lon": cropped_lon,
+    }
+    io.add_array(total_coords, STORED_VARIABLES)
 
-        x = x0.to(device)
-        coords = {"ensemble": ensemble_coords} | coords0.copy()
-        x = x.unsqueeze(0).repeat(mini_batch_size, *([1] * x.ndim))
+    lead_time_hours_out = (lead_time_out / np.timedelta64(1, "h")).astype(float)
+    bounds_rows = []
+    timeseries_rows = []
+
+    for member_id in range(N_ENSEMBLE):
+        perturbation = Zero() if member_id == 0 else cfg_perturbation
+        tag = "control (Zero)" if member_id == 0 else name
+        print(f"  member {member_id} [{tag}] ...")
+
+        x = x0.clone().unsqueeze(0)
+        coords = {"ensemble": np.array([member_id])} | coords0.copy()
         x, coords = map_coords(x, coords, prognostic_ic)
+        x, coords = perturbation(x, coords)  # single IC-only perturbation, mirrors run.ensemble()
 
-        io.write(*split_coords(x, coords))  # step 0: the unperturbed IC, identical across members
+        bounds_rows += bounds_metrics_rows(x, coords, name, member_id, 0, lead_time_hours_out[0])
+        timeseries_rows.append(global_mean_metrics_row(x, coords, name, member_id, 0, lead_time_hours_out[0]))
+        x_store, coords_store = select_stored(x, coords, lat_mask, lon_mask)
+        io.write(*split_coords(x_store, coords_store))
 
         for step in range(1, N_STEPS + 1):
-            x, coords = model(x, coords)              # one autoregressive step
-            x, coords = step_perturbation(x, coords)   # inject fresh noise before writing/feeding forward
-            io.write(*split_coords(x, coords))
+            x, coords = model(x, coords)  # one autoregressive step, always taken regardless of prior violations
+            rows = bounds_metrics_rows(x, coords, name, member_id, step, lead_time_hours_out[step])
+            bounds_rows += rows
+            timeseries_rows.append(global_mean_metrics_row(x, coords, name, member_id, step, lead_time_hours_out[step]))
+            worst = max(rows, key=lambda r: r["violating_fraction"])
+            if worst["violating_fraction"] > 0:
+                print(f"    step {step} (lead_time={lead_time_hours_out[step]:.0f}h): "
+                      f"worst variable '{worst['variable']}' violating_fraction={worst['violating_fraction']:.4f}")
+            x_store, coords_store = select_stored(x, coords, lat_mask, lon_mask)
+            io.write(*split_coords(x_store, coords_store))
 
-    print(f"Saved '{name}' to {zarr_path}")
+    output_path = paths.perturbation_metrics_path
+    output_path.mkdir(parents=True, exist_ok=True)
+    bounds_path = output_path / f"{name}_bounds.csv"
+    timeseries_path = output_path / f"{name}_timeseries.csv"
+    pd.DataFrame(bounds_rows).to_csv(bounds_path, index=False)
+    pd.DataFrame(timeseries_rows).to_csv(timeseries_path, index=False)
+    print(f"Saved '{name}' field data to {zarr_path}, bounds metrics to {bounds_path}, "
+          f"global-mean timeseries to {timeseries_path}")
 
 
-for config_name, perturbation in STANDARD_CONFIGS.items():
-    run_standard(config_name, perturbation)
-
-run_per_step("per_step_brown", Brown(noise_amplitude=PER_STEP_NOISE_AMPLITUDE))
+for config_name, perturbation in CONFIGS.items():
+    run_config(config_name, perturbation)
 
 print("\nAll perturbation configurations complete.")

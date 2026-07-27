@@ -243,3 +243,31 @@ stages:
           cache: false
       - output/variable_subset/full_vs_subset_bars.png:
           cache: false
+
+  # Diagnostic experiment (not yet a book chapter): does SFNO tolerate IC
+  # perturbation, and at what amplitude? See pipeline/perturbation/01_run.py's
+  # module docstring for the full story - it grew out of the temporal-
+  # downscaling investigation, where Brown(noise_amplitude=0.05) blew up
+  # SFNO+InterpModAFNO from the first step.
+  perturbation_run:
+    cmd: PYTHONPATH=. \${E2S_PYTHON:-/root/earth2studio-project/.venv/bin/python} pipeline/perturbation/01_run.py
+    deps:
+      - pipeline/perturbation/01_run.py
+      - e2s/validation.py
+    outs:
+      - data/perturbation:
+          persist: true
+      - output/perturbation/metrics:
+          cache: false
+          persist: true
+
+  perturbation_analyse:
+    cmd: PYTHONPATH=. \${E2S_PYTHON:-/root/earth2studio-project/.venv/bin/python} pipeline/perturbation/02_analyse.py
+    deps:
+      - pipeline/perturbation/02_analyse.py
+      - e2s/validation.py
+      - data/perturbation
+      - output/perturbation/metrics
+    outs:
+      - output/perturbation/analysis:
+          cache: false

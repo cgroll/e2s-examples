@@ -214,6 +214,21 @@ class ProjPaths:
     def perturbation_output_path(self) -> Path:
         return self.output_path / "perturbation"
 
+    @property
+    def perturbation_metrics_path(self) -> Path:
+        """Per-step bounds-violation and global-mean-timeseries CSVs
+        written by pipeline/perturbation/01_run.py - kept separate from
+        perturbation_analysis_path so 02_analyse.py's stage can own that
+        directory as its own DVC output without nesting inside this
+        one's, mirrors ensemble_book_path's docstring for why."""
+        return self.perturbation_output_path / "metrics"
+
+    @property
+    def perturbation_analysis_path(self) -> Path:
+        """Gifs/meteograms/blow-up summary written by
+        pipeline/perturbation/02_analyse.py."""
+        return self.perturbation_output_path / "analysis"
+
     # ------------------------------------------------------------------ #
     # Helpers                                                            #
     # ------------------------------------------------------------------ #
@@ -240,6 +255,8 @@ class ProjPaths:
             self.germany_book_path,
             self.perturbation_data_path,
             self.perturbation_output_path,
+            self.perturbation_metrics_path,
+            self.perturbation_analysis_path,
         ]
         for d in dirs:
             d.mkdir(parents=True, exist_ok=True)
