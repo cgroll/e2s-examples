@@ -1,4 +1,7 @@
-data/
+data/*
+!data/germany/
+data/germany/*
+!data/germany/pecd_population_mask_raw.nc
 .venv/
 book/_build/
 
