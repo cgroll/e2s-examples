@@ -461,14 +461,14 @@ stages:
       nfiles: 15
     - path: pipeline/perturbation/02_analyse.py
       hash: md5
-      md5: 06b03ba36623184ace8156e4cac41617
-      size: 15847
+      md5: ab11f80cd7a8f2c9a60e27e566a4b7fe
+      size: 19889
     outs:
     - path: output/perturbation/analysis
       hash: md5
-      md5: edbf27c5578a0f10eb9b8a20d037facd.dir
-      size: 12628314
-      nfiles: 20
+      md5: 6247aad5f8035512edfde5f8fb5e8bd5.dir
+      size: 13418569
+      nfiles: 30
   perturbation_book_overview:
     cmd: MPLBACKEND=Agg PYTHONPATH=$(pwd) uv run jupytext --to notebook 
       --execute --set-kernel e2s-gpu --output 
@@ -511,17 +511,21 @@ stages:
       md5: a6237187754f37b044e7d84dac58387a
       size: 6067
   perturbation_book_zero:
-    cmd: PERTURBATION_CONFIG=zero MPLBACKEND=Agg PYTHONPATH=$(pwd) uv run 
-      jupytext --to notebook --execute --set-kernel e2s-gpu --output 
+    cmd: MPLBACKEND=Agg PYTHONPATH=$(pwd) uv run jupytext --to notebook 
+      --execute --set-kernel e2s-gpu --output 
       book/notebooks/12_perturbation_zero.ipynb 
-      pipeline/perturbation/04_config_overview.py && uv run python 
+      pipeline/perturbation/04_config_zero.py && uv run python 
       pipeline/_strip_jupytext_metadata.py 
       book/notebooks/12_perturbation_zero.ipynb
     deps:
+    - path: output/perturbation/analysis/zero_cross_variable_heatmap.png
+      hash: md5
+      md5: 38cc11630ea19f933d89314ba39b96ac
+      size: 68573
     - path: output/perturbation/analysis/zero_dashboard.png
       hash: md5
-      md5: 1fa42257e467f322060e42191d95b16f
-      size: 304577
+      md5: 91b213076db65109f3c7c6ec4b99719c
+      size: 301345
     - path: output/perturbation/analysis/zero_mean_std.gif
       hash: md5
       md5: 2e29c94dcf8eaa51018e4c0515c7c5a3
@@ -534,31 +538,35 @@ stages:
       hash: md5
       md5: 227eb367e80d150d8c55d18bbf64d143
       size: 93281
+    - path: output/perturbation/analysis/zero_standalone_heatmap.png
+      hash: md5
+      md5: c586c9c170f322246db4ba2d7aaadfeb
+      size: 133827
     - path: pipeline/_strip_jupytext_metadata.py
       hash: md5
       md5: 19bb5d4de197aa76a272664affdbccdf
       size: 540
-    - path: pipeline/perturbation/04_config_overview.py
+    - path: pipeline/perturbation/04_config_zero.py
       hash: md5
-      md5: 8e1f97d2a9044d0ed43e496e27654975
-      size: 4119
+      md5: e5fd2d59526d69f84c757d7b2e9557ea
+      size: 5280
     outs:
     - path: book/notebooks/12_perturbation_zero.ipynb
       hash: md5
-      md5: 10e965894332f8ddea5ac0700bd98fe8
-      size: 8868
+      md5: 00387ca693e61158abae3304199720e6
+      size: 7593
   perturbation_book_brown_0002:
-    cmd: PERTURBATION_CONFIG=brown_0.002 MPLBACKEND=Agg PYTHONPATH=$(pwd) uv run
-      jupytext --to notebook --execute --set-kernel e2s-gpu --output 
+    cmd: MPLBACKEND=Agg PYTHONPATH=$(pwd) uv run jupytext --to notebook 
+      --execute --set-kernel e2s-gpu --output 
       book/notebooks/15_perturbation_brown_0.002.ipynb 
-      pipeline/perturbation/04_config_overview.py && uv run python 
+      pipeline/perturbation/07_config_brown_0002.py && uv run python 
       pipeline/_strip_jupytext_metadata.py 
       book/notebooks/15_perturbation_brown_0.002.ipynb
     deps:
     - path: output/perturbation/analysis/brown_0.002_dashboard.png
       hash: md5
-      md5: 00d36527a075abe8951057cb899de639
-      size: 483728
+      md5: 93003091933b9a82c4ad68cff8ac69c1
+      size: 373354
     - path: output/perturbation/analysis/brown_0.002_mean_std.gif
       hash: md5
       md5: a5c75de15e393afc9eb991b092f2e8c0
@@ -576,27 +584,27 @@ stages:
       hash: md5
       md5: 19bb5d4de197aa76a272664affdbccdf
       size: 540
-    - path: pipeline/perturbation/04_config_overview.py
+    - path: pipeline/perturbation/07_config_brown_0002.py
       hash: md5
-      md5: 8e1f97d2a9044d0ed43e496e27654975
-      size: 4119
+      md5: de2bfd0207d70c60afa71d2631f92da3
+      size: 4723
     outs:
     - path: book/notebooks/15_perturbation_brown_0.002.ipynb
       hash: md5
-      md5: 4e45e88dc28b4cc8ad774a9de6db3fb3
-      size: 8916
+      md5: 45f77af15b4511beef34d023182153d6
+      size: 6775
   perturbation_book_gaussian_005:
-    cmd: PERTURBATION_CONFIG=gaussian_0.05 MPLBACKEND=Agg PYTHONPATH=$(pwd) uv 
-      run jupytext --to notebook --execute --set-kernel e2s-gpu --output 
+    cmd: MPLBACKEND=Agg PYTHONPATH=$(pwd) uv run jupytext --to notebook 
+      --execute --set-kernel e2s-gpu --output 
       book/notebooks/16_perturbation_gaussian_0.05.ipynb 
-      pipeline/perturbation/04_config_overview.py && uv run python 
+      pipeline/perturbation/08_config_gaussian_005.py && uv run python 
       pipeline/_strip_jupytext_metadata.py 
       book/notebooks/16_perturbation_gaussian_0.05.ipynb
     deps:
     - path: output/perturbation/analysis/gaussian_0.05_dashboard.png
       hash: md5
-      md5: 40933a0b43bc9590d92e83c7a7e58a66
-      size: 353859
+      md5: 6fcf1349772639bef87a73efc76cbfde
+      size: 333923
     - path: output/perturbation/analysis/gaussian_0.05_mean_std.gif
       hash: md5
       md5: 1a91b3694d6aee5c7248167a0d52bc79
@@ -614,27 +622,27 @@ stages:
       hash: md5
       md5: 19bb5d4de197aa76a272664affdbccdf
       size: 540
-    - path: pipeline/perturbation/04_config_overview.py
+    - path: pipeline/perturbation/08_config_gaussian_005.py
       hash: md5
-      md5: 8e1f97d2a9044d0ed43e496e27654975
-      size: 4119
+      md5: e07be10f2a5237f061d76ce45734abe5
+      size: 3490
     outs:
     - path: book/notebooks/16_perturbation_gaussian_0.05.ipynb
       hash: md5
-      md5: fd4f1e768a47b4f0f2b3d2c193c798e4
-      size: 9025
+      md5: 2f63d2934ef85a4811a7561fbe41cb91
+      size: 5392
   perturbation_book_brown_001:
-    cmd: PERTURBATION_CONFIG=brown_0.01 MPLBACKEND=Agg PYTHONPATH=$(pwd) uv run 
-      jupytext --to notebook --execute --set-kernel e2s-gpu --output 
+    cmd: MPLBACKEND=Agg PYTHONPATH=$(pwd) uv run jupytext --to notebook 
+      --execute --set-kernel e2s-gpu --output 
       book/notebooks/14_perturbation_brown_0.01.ipynb 
-      pipeline/perturbation/04_config_overview.py && uv run python 
+      pipeline/perturbation/06_config_brown_001.py && uv run python 
       pipeline/_strip_jupytext_metadata.py 
       book/notebooks/14_perturbation_brown_0.01.ipynb
     deps:
     - path: output/perturbation/analysis/brown_0.01_dashboard.png
       hash: md5
-      md5: 7c0042326faba2eda5c5e857bf9f6d8c
-      size: 450323
+      md5: 46261e46732b8d99fdbb51b8161b1bb3
+      size: 378068
     - path: output/perturbation/analysis/brown_0.01_mean_std.gif
       hash: md5
       md5: e5821a29dac1e5b9fc16ad11a48525af
@@ -651,27 +659,27 @@ stages:
       hash: md5
       md5: 19bb5d4de197aa76a272664affdbccdf
       size: 540
-    - path: pipeline/perturbation/04_config_overview.py
+    - path: pipeline/perturbation/06_config_brown_001.py
       hash: md5
-      md5: 8e1f97d2a9044d0ed43e496e27654975
-      size: 4119
+      md5: 9c61d71c3f895ebeb6166121065796cf
+      size: 3436
     outs:
     - path: book/notebooks/14_perturbation_brown_0.01.ipynb
       hash: md5
-      md5: 57068916a9ff8c70cc1ccf4e3a9dda0a
-      size: 8901
+      md5: 7a0ab581a1e64f3d02171145555129c9
+      size: 5331
   perturbation_book_brown_005:
-    cmd: PERTURBATION_CONFIG=brown_0.05 MPLBACKEND=Agg PYTHONPATH=$(pwd) uv run 
-      jupytext --to notebook --execute --set-kernel e2s-gpu --output 
+    cmd: MPLBACKEND=Agg PYTHONPATH=$(pwd) uv run jupytext --to notebook 
+      --execute --set-kernel e2s-gpu --output 
       book/notebooks/13_perturbation_brown_0.05.ipynb 
-      pipeline/perturbation/04_config_overview.py && uv run python 
+      pipeline/perturbation/05_config_brown_005.py && uv run python 
       pipeline/_strip_jupytext_metadata.py 
       book/notebooks/13_perturbation_brown_0.05.ipynb
     deps:
     - path: output/perturbation/analysis/brown_0.05_dashboard.png
       hash: md5
-      md5: a85df11ae005edcac93c718c0df2b612
-      size: 433509
+      md5: fe448f1518576452f561ac43df1e66e8
+      size: 376319
     - path: output/perturbation/analysis/brown_0.05_mean_std.gif
       hash: md5
       md5: 8d83d9d9675848392f2ce6942bc047ec
@@ -688,12 +696,12 @@ stages:
       hash: md5
       md5: 19bb5d4de197aa76a272664affdbccdf
       size: 540
-    - path: pipeline/perturbation/04_config_overview.py
+    - path: pipeline/perturbation/05_config_brown_005.py
       hash: md5
-      md5: 8e1f97d2a9044d0ed43e496e27654975
-      size: 4119
+      md5: 300503d645f1f6b4414185888224c20b
+      size: 3765
     outs:
     - path: book/notebooks/13_perturbation_brown_0.05.ipynb
       hash: md5
-      md5: 9dc0edacab63fb40a405e04448a55cdf
-      size: 8976
+      md5: 89e2302b2b43c759a7abb0319d755012
+      size: 5704

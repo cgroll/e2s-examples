@@ -36,10 +36,6 @@ CONFIG_NAMES = ["zero", "brown_0.05", "brown_0.01", "brown_0.002", "gaussian_0.0
 COLOR_MEMBER = "#6E7B8B"
 COLOR_MEAN = "#1F5C99"
 COLOR_CONTROL = "#C9622A"  # member 0: always Zero() regardless of config - see 01_run.py
-COLOR_VARIABLE_PALETTE = [
-    "#1F5C99", "#C9622A", "#2E8B57", "#6A4C93", "#D64545",
-    "#E68A2E", "#4C78A8", "#54A24B", "#B279A2", "#9D755D",
-]
 
 GIF_FRAME_DURATION = 0.3
 GIF_DPI = 100
@@ -205,6 +201,67 @@ def plot_munich_meteograms(ds, config_name, out_dir):
 # (C) is it just absolute bounds, or does relative ordering break too?
 # (D/E) is energy/mass conserved over the rollout?
 # ---------------------------------------------------------------------------
+def _heatmap_pivot(df, group_col):
+    """(group_col x lead_time_hours) matrix of mean violating_fraction
+    across perturbed members (member 0, the control, excluded - it's
+    the reference, not part of "how bad did this config get"). Same
+    aggregation pipeline as pipeline/ensemble/03_validate_visualize.py's
+    plot_aggregate_heatmap, except that one averages a binary valid
+    flag across *all* members while this averages the continuous
+    violating_fraction across perturbed members only - richer (keeps
+    the magnitude, not just pass/fail) and apples-to-apples with what
+    01_run.py already records per (config, member, step, variable)."""
+    perturbed = df[df["member"] != 0]
+    if perturbed.empty:
+        return None
+    return (
+        perturbed.groupby([group_col, "lead_time_hours"])["violating_fraction"].mean()
+        .unstack("lead_time_hours").sort_index()
+    )
+
+
+def _draw_heatmap(fig, ax, pivot, title, label_fontsize=6):
+    """Same visual convention as 03_validate_visualize.py's
+    plot_aggregate_heatmap (imshow, Reds, 0-1 range) - so a reader
+    comparing this project's two heatmap styles side by side (FCN3's
+    ensemble validation report vs. this sweep) is looking at the same
+    color scale and layout, not a bespoke one."""
+    mesh = ax.imshow(pivot.to_numpy(), aspect="auto", cmap="Reds", vmin=0, vmax=1, interpolation="none")
+    ax.set_yticks(range(len(pivot.index)))
+    ax.set_yticklabels(pivot.index.tolist(), fontsize=label_fontsize)
+    n_cols = pivot.shape[1]
+    step = max(1, n_cols // 20)
+    ax.set_xticks(range(0, n_cols, step))
+    ax.set_xticklabels([f"{h:.0f}" for h in pivot.columns[::step]], fontsize=7)
+    ax.set_xlabel("Lead time (hours since UTC init)")
+    ax.set_title(title)
+    cbar = fig.colorbar(mesh, ax=ax, shrink=0.8)
+    cbar.set_label("Mean violating fraction (perturbed members)")
+    return mesh
+
+
+def plot_full_heatmap(df, group_col, title, out_path):
+    """Full-height, all-rows heatmap - the same artifact as
+    pipeline/ensemble/03_validate_visualize.py's
+    standalone_variable_summary_heatmap.png/
+    cross_variable_consistency_summary_heatmap.png, built from this
+    sweep's own (config, member, step, variable) metrics instead of the
+    main ensemble's. Kept as its own dedicated figure (not squeezed into
+    the 5-panel dashboard) since a full 73-variable or 11-check y-axis
+    needs real height to stay legible - see plot_config_dashboard's
+    panel B for the compact, dashboard-sized version of the same idea."""
+    pivot = _heatmap_pivot(df, group_col)
+    if pivot is None:
+        print(f"[WARN] no data for {title} - skipping.")
+        return
+    fig_h = max(4, 0.22 * len(pivot.index))
+    fig, ax = plt.subplots(figsize=(12, fig_h))
+    _draw_heatmap(fig, ax, pivot, title, label_fontsize=7)
+    fig.tight_layout()
+    fig.savefig(out_path, dpi=150)
+    plt.close(fig)
+
+
 def _member_lines(ax, df, value_col, group_cols=("member", "step", "lead_time_hours"), agg="max"):
     """One line per member, control (member 0) highlighted - the shared
     layout for panels A and C below."""
@@ -225,8 +282,19 @@ def plot_config_dashboard(name, bounds_df, cross_variable_df, timeseries_df, out
         print(f"[WARN] '{name}': no bounds data - skipping dashboard.")
         return
 
-    fig, axes = plt.subplots(5, 1, figsize=(14, 22))
-    ax_bounds, ax_vars, ax_cross, ax_ke, ax_mass = axes
+    fig = plt.figure(figsize=(14, 26))
+    # Panel B is a heatmap with one row per variable - needs more height
+    # than a line-chart panel to keep ~25 row labels legible. Margins set
+    # explicitly (not via tight_layout): the heatmap's colorbar creates an
+    # axes outside the gridspec that tight_layout can't reconcile with it,
+    # so it silently no-ops instead of erroring, leaving matplotlib's
+    # much-too-generous default top/bottom margins in place.
+    gs = fig.add_gridspec(5, 1, height_ratios=[1, 2.2, 1, 1, 1], hspace=0.55, top=0.97, bottom=0.04)
+    ax_bounds = fig.add_subplot(gs[0])
+    ax_vars = fig.add_subplot(gs[1])
+    ax_cross = fig.add_subplot(gs[2])
+    ax_ke = fig.add_subplot(gs[3])
+    ax_mass = fig.add_subplot(gs[4])
 
     # --- A: per-member worst-variable violating_fraction over time -----
     _member_lines(ax_bounds, bounds_df, "violating_fraction")
@@ -235,25 +303,26 @@ def plot_config_dashboard(name, bounds_df, cross_variable_df, timeseries_df, out
     ax_bounds.set_ylim(-0.02, 1.02)
     ax_bounds.legend(loc="upper left", fontsize=8, ncol=2)
 
-    # --- B: per-variable breakdown, perturbed members only -------------
+    # --- B: per-variable breakdown, perturbed members only - heatmap ---
+    # (x=time, y=variable, color=mean violating_fraction across perturbed
+    # members) - same idea as pipeline/ensemble/03_validate_visualize.py's
+    # standalone-variable heatmap, restricted to the ~25 most-affected
+    # variables so it stays legible at dashboard scale; see
+    # plot_full_heatmap for the complete, all-73-variable version.
     perturbed = bounds_df[bounds_df["member"] != 0]
     if not perturbed.empty:
-        per_var = perturbed.groupby(["variable", "step", "lead_time_hours"])["violating_fraction"].mean().reset_index()
-        final_step = per_var["step"].max()
+        final_step = perturbed["step"].max()
         top_vars = (
-            per_var[per_var["step"] == final_step]
-            .sort_values("violating_fraction", ascending=False)["variable"].head(10).tolist()
+            perturbed[perturbed["step"] == final_step]
+            .groupby("variable")["violating_fraction"].mean()
+            .sort_values(ascending=False).head(25).index.tolist()
         )
-        for i, var in enumerate(top_vars):
-            var_df = per_var[per_var["variable"] == var].sort_values("lead_time_hours")
-            ax_vars.plot(
-                var_df["lead_time_hours"], var_df["violating_fraction"],
-                color=COLOR_VARIABLE_PALETTE[i % len(COLOR_VARIABLE_PALETTE)], linewidth=1.5, label=var,
-            )
-    ax_vars.set_title("(B) top-10 most-affected variables (mean violating fraction across perturbed members)")
-    ax_vars.set_ylabel("Violating fraction")
-    ax_vars.set_ylim(-0.02, 1.02)
-    ax_vars.legend(loc="upper left", fontsize=7, ncol=5)
+        pivot = _heatmap_pivot(perturbed[perturbed["variable"].isin(top_vars)], "variable")
+        if pivot is not None:
+            pivot = pivot.reindex(top_vars)  # keep worst-first row order, not alphabetical
+            _draw_heatmap(fig, ax_vars, pivot, "(B) most-affected variables (mean violating fraction, perturbed members)")
+    else:
+        ax_vars.set_title("(B) most-affected variables - no perturbed members")
 
     # --- C: cross-variable (z-level ordering) consistency --------------
     if not cross_variable_df.empty:
@@ -304,10 +373,9 @@ def plot_config_dashboard(name, bounds_df, cross_variable_df, timeseries_df, out
     ax_mass.set_ylabel("Fractional drift")
     ax_mass.set_xlabel("Lead time (hours since UTC init)")
 
-    for ax in axes:
+    for ax in (ax_bounds, ax_cross, ax_ke, ax_mass):  # not ax_vars - a grid over heatmap cells is just visual noise
         ax.grid(True, color="#DDDDDD", linewidth=0.6)
 
-    fig.tight_layout()
     fig.savefig(out_path, dpi=150)
     plt.close(fig)
 
@@ -328,6 +396,16 @@ def main():
 
         print(f"Rendering diagnostics dashboard for '{name}'...")
         plot_config_dashboard(name, bounds_df, cross_variable_df, timeseries_df, output_dir / f"{name}_dashboard.png")
+
+        print(f"Rendering full standalone-variable and cross-variable heatmaps for '{name}'...")
+        plot_full_heatmap(
+            bounds_df, "variable", f"{name}: standalone variable bounds (all variables)",
+            output_dir / f"{name}_standalone_heatmap.png",
+        )
+        plot_full_heatmap(
+            cross_variable_df, "check", f"{name}: cross-variable (z-level) consistency (all checks)",
+            output_dir / f"{name}_cross_variable_heatmap.png",
+        )
 
     print(f"\nDone. Outputs written to {output_dir}/")
 

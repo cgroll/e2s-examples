@@ -299,16 +299,18 @@ stages:
   # project's existing convention of one stage per notebook.
   perturbation_book_zero:
     cmd: >-
-      PERTURBATION_CONFIG=zero MPLBACKEND=Agg PYTHONPATH=$(pwd) uv run jupytext --to notebook --execute
+      MPLBACKEND=Agg PYTHONPATH=$(pwd) uv run jupytext --to notebook --execute
       --set-kernel e2s-gpu
       --output book/notebooks/12_perturbation_zero.ipynb
-      pipeline/perturbation/04_config_overview.py &&
+      pipeline/perturbation/04_config_zero.py &&
       uv run python pipeline/_strip_jupytext_metadata.py
       book/notebooks/12_perturbation_zero.ipynb
     deps:
-      - pipeline/perturbation/04_config_overview.py
+      - pipeline/perturbation/04_config_zero.py
       - pipeline/_strip_jupytext_metadata.py
       - output/perturbation/analysis/zero_dashboard.png
+      - output/perturbation/analysis/zero_standalone_heatmap.png
+      - output/perturbation/analysis/zero_cross_variable_heatmap.png
       - output/perturbation/analysis/zero_mean_std.gif
       - output/perturbation/analysis/zero_meteogram_t2m_munich.png
       - output/perturbation/analysis/zero_meteogram_wind10m_munich.png
@@ -318,14 +320,14 @@ stages:
 
   perturbation_book_brown_005:
     cmd: >-
-      PERTURBATION_CONFIG=brown_0.05 MPLBACKEND=Agg PYTHONPATH=$(pwd) uv run jupytext --to notebook --execute
+      MPLBACKEND=Agg PYTHONPATH=$(pwd) uv run jupytext --to notebook --execute
       --set-kernel e2s-gpu
       --output book/notebooks/13_perturbation_brown_0.05.ipynb
-      pipeline/perturbation/04_config_overview.py &&
+      pipeline/perturbation/05_config_brown_005.py &&
       uv run python pipeline/_strip_jupytext_metadata.py
       book/notebooks/13_perturbation_brown_0.05.ipynb
     deps:
-      - pipeline/perturbation/04_config_overview.py
+      - pipeline/perturbation/05_config_brown_005.py
       - pipeline/_strip_jupytext_metadata.py
       - output/perturbation/analysis/brown_0.05_dashboard.png
       - output/perturbation/analysis/brown_0.05_mean_std.gif
@@ -337,14 +339,14 @@ stages:
 
   perturbation_book_brown_001:
     cmd: >-
-      PERTURBATION_CONFIG=brown_0.01 MPLBACKEND=Agg PYTHONPATH=$(pwd) uv run jupytext --to notebook --execute
+      MPLBACKEND=Agg PYTHONPATH=$(pwd) uv run jupytext --to notebook --execute
       --set-kernel e2s-gpu
       --output book/notebooks/14_perturbation_brown_0.01.ipynb
-      pipeline/perturbation/04_config_overview.py &&
+      pipeline/perturbation/06_config_brown_001.py &&
       uv run python pipeline/_strip_jupytext_metadata.py
       book/notebooks/14_perturbation_brown_0.01.ipynb
     deps:
-      - pipeline/perturbation/04_config_overview.py
+      - pipeline/perturbation/06_config_brown_001.py
       - pipeline/_strip_jupytext_metadata.py
       - output/perturbation/analysis/brown_0.01_dashboard.png
       - output/perturbation/analysis/brown_0.01_mean_std.gif
@@ -356,14 +358,14 @@ stages:
 
   perturbation_book_brown_0002:
     cmd: >-
-      PERTURBATION_CONFIG=brown_0.002 MPLBACKEND=Agg PYTHONPATH=$(pwd) uv run jupytext --to notebook --execute
+      MPLBACKEND=Agg PYTHONPATH=$(pwd) uv run jupytext --to notebook --execute
       --set-kernel e2s-gpu
       --output book/notebooks/15_perturbation_brown_0.002.ipynb
-      pipeline/perturbation/04_config_overview.py &&
+      pipeline/perturbation/07_config_brown_0002.py &&
       uv run python pipeline/_strip_jupytext_metadata.py
       book/notebooks/15_perturbation_brown_0.002.ipynb
     deps:
-      - pipeline/perturbation/04_config_overview.py
+      - pipeline/perturbation/07_config_brown_0002.py
       - pipeline/_strip_jupytext_metadata.py
       - output/perturbation/analysis/brown_0.002_dashboard.png
       - output/perturbation/analysis/brown_0.002_mean_std.gif
@@ -375,14 +377,14 @@ stages:
 
   perturbation_book_gaussian_005:
     cmd: >-
-      PERTURBATION_CONFIG=gaussian_0.05 MPLBACKEND=Agg PYTHONPATH=$(pwd) uv run jupytext --to notebook --execute
+      MPLBACKEND=Agg PYTHONPATH=$(pwd) uv run jupytext --to notebook --execute
       --set-kernel e2s-gpu
       --output book/notebooks/16_perturbation_gaussian_0.05.ipynb
-      pipeline/perturbation/04_config_overview.py &&
+      pipeline/perturbation/08_config_gaussian_005.py &&
       uv run python pipeline/_strip_jupytext_metadata.py
       book/notebooks/16_perturbation_gaussian_0.05.ipynb
     deps:
-      - pipeline/perturbation/04_config_overview.py
+      - pipeline/perturbation/08_config_gaussian_005.py
       - pipeline/_strip_jupytext_metadata.py
       - output/perturbation/analysis/gaussian_0.05_dashboard.png
       - output/perturbation/analysis/gaussian_0.05_mean_std.gif
