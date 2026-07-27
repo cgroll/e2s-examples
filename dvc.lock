@@ -469,3 +469,64 @@ stages:
       md5: 6f9ee7b9aeac330da263ec6df38aaafb.dir
       size: 9717775
       nfiles: 16
+  perturbation_book_overview:
+    cmd: MPLBACKEND=Agg PYTHONPATH=$(pwd) uv run jupytext --to notebook 
+      --execute --set-kernel e2s-gpu --output 
+      book/notebooks/11_perturbation_sweep.ipynb 
+      pipeline/perturbation/03_forecast_overview.py && uv run python 
+      pipeline/_strip_jupytext_metadata.py 
+      book/notebooks/11_perturbation_sweep.ipynb
+    deps:
+    - path: output/perturbation/analysis/blowup_summary.png
+      hash: md5
+      md5: 531653c95c02dbfe7d0c62e81d5de95a
+      size: 128208
+    - path: output/perturbation/analysis/brown_0.002_meteogram_t2m_munich.png
+      hash: md5
+      md5: 6f128531db12e01cbed025f15e5c8816
+      size: 77381
+    - path: output/perturbation/analysis/brown_0.05_mean_std.gif
+      hash: md5
+      md5: f71d473af2b0e5ab95d3b478053b522f
+      size: 1459005
+    - path: output/perturbation/analysis/zero_mean_std.gif
+      hash: md5
+      md5: 84d5aa0fc79d05be1f10ff463f9f3874
+      size: 1244608
+    - path: output/perturbation/analysis/zero_meteogram_t2m_munich.png
+      hash: md5
+      md5: 44b17e8d79fa34e9f939b6ea43dabc5f
+      size: 105293
+    - path: output/perturbation/metrics/brown_0.002_bounds.csv
+      hash: md5
+      md5: 4d351a57bc9447b06b9130f4356f857e
+      size: 553169
+    - path: output/perturbation/metrics/brown_0.01_bounds.csv
+      hash: md5
+      md5: f1277c02819c5fc832b14b0104167359
+      size: 552958
+    - path: output/perturbation/metrics/brown_0.05_bounds.csv
+      hash: md5
+      md5: 79ed7803dc2b5998a75701b6c7ba26d9
+      size: 545091
+    - path: output/perturbation/metrics/gaussian_0.05_bounds.csv
+      hash: md5
+      md5: 48fa68fdd5d1d4ad282d6ecc3b5dc552
+      size: 558426
+    - path: output/perturbation/metrics/zero_bounds.csv
+      hash: md5
+      md5: 27dd981bd2a75eedd8a2389350ac3e57
+      size: 449527
+    - path: pipeline/_strip_jupytext_metadata.py
+      hash: md5
+      md5: 19bb5d4de197aa76a272664affdbccdf
+      size: 540
+    - path: pipeline/perturbation/03_forecast_overview.py
+      hash: md5
+      md5: 258bbdcee7131f1267010a52f1d71b2e
+      size: 6471
+    outs:
+    - path: book/notebooks/11_perturbation_sweep.ipynb
+      hash: md5
+      md5: 81cff5d25b4a8ab39c14a958c9d2d6db
+      size: 9430

@@ -22,6 +22,9 @@ project:
     - title: Temporal downscaling
       children:
         - file: notebooks/09_downscaling_overview.ipynb
+    - title: IC perturbation sweep (SFNO)
+      children:
+        - file: notebooks/11_perturbation_sweep.ipynb
     - title: Diagnostic model
       children:
         - file: notebooks/07_diagnostic_solar_radiation.ipynb

@@ -271,3 +271,28 @@ stages:
     outs:
       - output/perturbation/analysis:
           cache: false
+
+  perturbation_book_overview:
+    cmd: >-
+      MPLBACKEND=Agg PYTHONPATH=$(pwd) uv run jupytext --to notebook --execute
+      --set-kernel e2s-gpu
+      --output book/notebooks/11_perturbation_sweep.ipynb
+      pipeline/perturbation/03_forecast_overview.py &&
+      uv run python pipeline/_strip_jupytext_metadata.py
+      book/notebooks/11_perturbation_sweep.ipynb
+    deps:
+      - pipeline/perturbation/03_forecast_overview.py
+      - pipeline/_strip_jupytext_metadata.py
+      - output/perturbation/metrics/zero_bounds.csv
+      - output/perturbation/metrics/brown_0.05_bounds.csv
+      - output/perturbation/metrics/brown_0.01_bounds.csv
+      - output/perturbation/metrics/brown_0.002_bounds.csv
+      - output/perturbation/metrics/gaussian_0.05_bounds.csv
+      - output/perturbation/analysis/blowup_summary.png
+      - output/perturbation/analysis/zero_meteogram_t2m_munich.png
+      - output/perturbation/analysis/brown_0.002_meteogram_t2m_munich.png
+      - output/perturbation/analysis/zero_mean_std.gif
+      - output/perturbation/analysis/brown_0.05_mean_std.gif
+    outs:
+      - book/notebooks/11_perturbation_sweep.ipynb:
+          cache: false
