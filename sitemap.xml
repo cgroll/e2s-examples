@@ -11,6 +11,9 @@
     <loc>http://localhost:3000/notebooks/validation-report</loc>
   </url>
   <url>
+    <loc>http://localhost:3000/notebooks/perturbation-ic-robustness</loc>
+  </url>
+  <url>
     <loc>http://localhost:3000/notebooks/perturbation-sweep</loc>
   </url>
   <url>
@@ -26,16 +29,16 @@
     <loc>http://localhost:3000/notebooks/perturbation-brown-0-002</loc>
   </url>
   <url>
-    <loc>http://localhost:3000/notebooks/perturbation-gaussian-0-05</loc>
+    <loc>http://localhost:3000/notebooks/perturbation-z500-brown-0-05</loc>
+  </url>
+  <url>
+    <loc>http://localhost:3000/notebooks/perturbation-z500-brown-0-01</loc>
+  </url>
+  <url>
+    <loc>http://localhost:3000/notebooks/perturbation-z500-brown-0-002</loc>
   </url>
   <url>
     <loc>http://localhost:3000/notebooks/perturbation-bred-vector</loc>
-  </url>
-  <url>
-    <loc>http://localhost:3000/notebooks/perturbation-z500-brown-200</loc>
-  </url>
-  <url>
-    <loc>http://localhost:3000/notebooks/perturbation-robustness-season</loc>
   </url>
   <url>
     <loc>http://localhost:3000/notebooks/germany-population-weighted</loc>
