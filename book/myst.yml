@@ -24,6 +24,7 @@ project:
         - file: notebooks/14_perturbation_brown_0.01.ipynb
         - file: notebooks/15_perturbation_brown_0.002.ipynb
         - file: notebooks/16_perturbation_gaussian_0.05.ipynb
+        - file: notebooks/17_perturbation_bred_vector.ipynb
     - title: Population-weighted temperature
       children:
         - file: notebooks/10_germany_population_weighted.ipynb

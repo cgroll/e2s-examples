@@ -428,47 +428,47 @@ stages:
       size: 7937
     - path: pipeline/perturbation/01_run.py
       hash: md5
-      md5: 5b30028a9fa80cd024a16566294653a4
-      size: 20042
+      md5: fa30fd690fd710ce25f76399c1742f39
+      size: 21520
     outs:
     - path: data/perturbation
       hash: md5
-      md5: 8ee66ece3444a830a76206d0cdd74ff2.dir
-      size: 779047725
-      nfiles: 1755
+      md5: 7060ae27a49b74a34786248ac92254e0.dir
+      size: 934857270
+      nfiles: 2106
     - path: output/perturbation/metrics
       hash: md5
-      md5: 7f6d479bfa6796c15c543a7a92aaaadd.dir
-      size: 3042035
-      nfiles: 15
+      md5: e01013ae35ceee61661732526fd99bf2.dir
+      size: 3613844
+      nfiles: 18
   perturbation_analyse:
     cmd: PYTHONPATH=. ${E2S_PYTHON:-/root/earth2studio-project/.venv/bin/python}
       pipeline/perturbation/02_analyse.py
     deps:
     - path: data/perturbation
       hash: md5
-      md5: 8ee66ece3444a830a76206d0cdd74ff2.dir
-      size: 779047725
-      nfiles: 1755
+      md5: 7060ae27a49b74a34786248ac92254e0.dir
+      size: 934857270
+      nfiles: 2106
     - path: e2s/validation.py
       hash: md5
       md5: 8b084622c89fd4ea3d8ab9e414254102
       size: 7937
     - path: output/perturbation/metrics
       hash: md5
-      md5: 7f6d479bfa6796c15c543a7a92aaaadd.dir
-      size: 3042035
-      nfiles: 15
+      md5: e01013ae35ceee61661732526fd99bf2.dir
+      size: 3613844
+      nfiles: 18
     - path: pipeline/perturbation/02_analyse.py
       hash: md5
-      md5: ab11f80cd7a8f2c9a60e27e566a4b7fe
-      size: 19889
+      md5: 5ab9a158af3c9f7a1fec85c9bc1bcdf6
+      size: 19904
     outs:
     - path: output/perturbation/analysis
       hash: md5
-      md5: 6247aad5f8035512edfde5f8fb5e8bd5.dir
-      size: 13418569
-      nfiles: 30
+      md5: 8df0867abbae700635d41a52ed4a5150.dir
+      size: 16448995
+      nfiles: 36
   perturbation_book_overview:
     cmd: MPLBACKEND=Agg PYTHONPATH=$(pwd) uv run jupytext --to notebook 
       --execute --set-kernel e2s-gpu --output 
@@ -477,6 +477,10 @@ stages:
       pipeline/_strip_jupytext_metadata.py 
       book/notebooks/11_perturbation_sweep.ipynb
     deps:
+    - path: output/perturbation/metrics/bred_vector_bounds.csv
+      hash: md5
+      md5: 63bd3a0696afb9570b24deda924a1379
+      size: 502589
     - path: output/perturbation/metrics/brown_0.002_bounds.csv
       hash: md5
       md5: 64676fe74b7ad34f7c3076d73ae4b15f
@@ -503,13 +507,13 @@ stages:
       size: 540
     - path: pipeline/perturbation/03_forecast_overview.py
       hash: md5
-      md5: 345fd4912e83e74ba112d1123dd60929
-      size: 3570
+      md5: 87bfcc2ae3f43a07924d9ded37ac6fe8
+      size: 4159
     outs:
     - path: book/notebooks/11_perturbation_sweep.ipynb
       hash: md5
-      md5: a6237187754f37b044e7d84dac58387a
-      size: 6067
+      md5: f2fca02162c9aada1d45e80a95fb7242
+      size: 6792
   perturbation_book_zero:
     cmd: MPLBACKEND=Agg PYTHONPATH=$(pwd) uv run jupytext --to notebook 
       --execute --set-kernel e2s-gpu --output 
@@ -705,3 +709,49 @@ stages:
       hash: md5
       md5: 89e2302b2b43c759a7abb0319d755012
       size: 5704
+  perturbation_book_bred_vector:
+    cmd: MPLBACKEND=Agg PYTHONPATH=$(pwd) uv run jupytext --to notebook 
+      --execute --set-kernel e2s-gpu --output 
+      book/notebooks/17_perturbation_bred_vector.ipynb 
+      pipeline/perturbation/09_config_bred_vector.py && uv run python 
+      pipeline/_strip_jupytext_metadata.py 
+      book/notebooks/17_perturbation_bred_vector.ipynb
+    deps:
+    - path: output/perturbation/analysis/bred_vector_cross_variable_heatmap.png
+      hash: md5
+      md5: c8675e152233e1e522d9e291aa7a8e9e
+      size: 69813
+    - path: output/perturbation/analysis/bred_vector_dashboard.png
+      hash: md5
+      md5: eec74ac74411a54fed45568d25416a82
+      size: 334373
+    - path: output/perturbation/analysis/bred_vector_mean_std.gif
+      hash: md5
+      md5: 3fcd43dc0ab98b63d81b6a33194ad29c
+      size: 2308139
+    - path: output/perturbation/analysis/bred_vector_meteogram_t2m_munich.png
+      hash: md5
+      md5: e4f50d1d7378724c6feedb9b3f178c1d
+      size: 93298
+    - path: 
+        output/perturbation/analysis/bred_vector_meteogram_wind10m_munich.png
+      hash: md5
+      md5: 9996f31c4ab84e78e7c3676cfb9e2929
+      size: 88585
+    - path: output/perturbation/analysis/bred_vector_standalone_heatmap.png
+      hash: md5
+      md5: 406f8f827cecc4be8f935787a0e17bcc
+      size: 136218
+    - path: pipeline/_strip_jupytext_metadata.py
+      hash: md5
+      md5: 19bb5d4de197aa76a272664affdbccdf
+      size: 540
+    - path: pipeline/perturbation/09_config_bred_vector.py
+      hash: md5
+      md5: 7098059b330b3f27d7e1a94429e3c0cc
+      size: 6298
+    outs:
+    - path: book/notebooks/17_perturbation_bred_vector.ipynb
+      hash: md5
+      md5: dc8312de490889f04f5d12132d57eea1
+      size: 8770

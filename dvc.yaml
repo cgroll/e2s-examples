@@ -288,15 +288,16 @@ stages:
       - output/perturbation/metrics/brown_0.01_bounds.csv
       - output/perturbation/metrics/brown_0.002_bounds.csv
       - output/perturbation/metrics/gaussian_0.05_bounds.csv
+      - output/perturbation/metrics/bred_vector_bounds.csv
     outs:
       - book/notebooks/11_perturbation_sweep.ipynb:
           cache: false
 
-  # One standardized stage per perturbation config, same template script
-  # (pipeline/perturbation/04_config_overview.py) selected via the
-  # PERTURBATION_CONFIG env var - kept as five explicit stages rather
-  # than a loop since dvc.yaml has no native "for each", matching this
-  # project's existing convention of one stage per notebook.
+  # One stage per perturbation config, each its own individually-authored
+  # script (pipeline/perturbation/04_config_zero.py etc. - see that
+  # file's header comment for why this isn't one shared template: MyST
+  # only parses *static* markdown cells for page titles/figures, not a
+  # code cell's dynamic display(Markdown(...)) output).
   perturbation_book_zero:
     cmd: >-
       MPLBACKEND=Agg PYTHONPATH=$(pwd) uv run jupytext --to notebook --execute
@@ -392,4 +393,25 @@ stages:
       - output/perturbation/analysis/gaussian_0.05_meteogram_wind10m_munich.png
     outs:
       - book/notebooks/16_perturbation_gaussian_0.05.ipynb:
+          cache: false
+
+  perturbation_book_bred_vector:
+    cmd: >-
+      MPLBACKEND=Agg PYTHONPATH=$(pwd) uv run jupytext --to notebook --execute
+      --set-kernel e2s-gpu
+      --output book/notebooks/17_perturbation_bred_vector.ipynb
+      pipeline/perturbation/09_config_bred_vector.py &&
+      uv run python pipeline/_strip_jupytext_metadata.py
+      book/notebooks/17_perturbation_bred_vector.ipynb
+    deps:
+      - pipeline/perturbation/09_config_bred_vector.py
+      - pipeline/_strip_jupytext_metadata.py
+      - output/perturbation/analysis/bred_vector_dashboard.png
+      - output/perturbation/analysis/bred_vector_standalone_heatmap.png
+      - output/perturbation/analysis/bred_vector_cross_variable_heatmap.png
+      - output/perturbation/analysis/bred_vector_mean_std.gif
+      - output/perturbation/analysis/bred_vector_meteogram_t2m_munich.png
+      - output/perturbation/analysis/bred_vector_meteogram_wind10m_munich.png
+    outs:
+      - book/notebooks/17_perturbation_bred_vector.ipynb:
           cache: false

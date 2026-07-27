@@ -68,6 +68,27 @@ Per-step injection (like the FCN3 script's per_step_brown) is
 deliberately left out of this first pass - all five configs below are
 IC-only. Can be added later following the same manual-loop pattern if
 the IC-only sweep turns out inconclusive.
+
+bred_vector was added after the fact, once zero/brown/gaussian all
+turned out to diverge regardless of amplitude: unlike those, it doesn't
+add a static offset in raw physical units - it grows the perturbation by
+running the model itself for `integration_steps` internal steps on a
+lightly-seeded start, then rescales the result to `noise_amplitude`
+relative to the state's own norm (see earth2studio.perturbation.
+BredVector.__call__: `gamma = norm(x) / norm(x + dx)`). That
+self-relative scaling is the whole point - it doesn't force one flat
+amplitude onto all 73 variables regardless of their physical scale, the
+way Brown/Gaussian do. Seeded with Brown(noise_amplitude=0.002) - the
+smallest, least-catastrophic amplitude from the earlier sweep - since
+the seed still has to survive 20 internal model steps before it's
+rescaled into the final perturbation; a seed that immediately diverges
+would just bred a diverged direction. HemisphericCentredBredVector (the
+HENS-style variant used in NVIDIA's "Huge Ensembles" paper) was
+considered too, but it exposes a generator-based API
+(`create_generator`), not the simple `(x, coords) -> (x, coords)`
+interface every other perturbation method here uses - adapting the
+manual rollout loop for that is a bigger change, left for later if
+bred_vector itself doesn't pan out.
 """
 
 import re
@@ -79,7 +100,7 @@ import torch
 from earth2studio.data import GFS, fetch_data
 from earth2studio.io import ZarrBackend
 from earth2studio.models.px import SFNO
-from earth2studio.perturbation import Brown, Gaussian, Zero
+from earth2studio.perturbation import Brown, BredVector, Gaussian, Zero
 from earth2studio.utils.coords import map_coords, split_coords
 from earth2studio.utils.time import to_time_array
 
@@ -154,6 +175,10 @@ CONFIGS = {
     "brown_0.01": Brown(noise_amplitude=0.01),
     "brown_0.002": Brown(noise_amplitude=0.002),
     "gaussian_0.05": Gaussian(noise_amplitude=0.05, seed=0),
+    "bred_vector": BredVector(
+        model=model, noise_amplitude=0.05,
+        seeding_perturbation_method=Brown(noise_amplitude=0.002),
+    ),
 }
 
 

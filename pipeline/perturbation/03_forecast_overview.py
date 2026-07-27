@@ -17,18 +17,20 @@
 # first, before picking a perturbation strategy: does SFNO even tolerate
 # noise added to its initial condition, and at what amplitude?
 #
-# It runs SFNO under five configurations - `zero` (no perturbation, the
-# deterministic baseline), and `Brown`/`Gaussian` noise at several
-# amplitudes - each with one always-`Zero()` control member (member 0) to
-# anchor comparisons against, and validates every step against this
-# project's physical-plausibility bounds table (`e2s.validation.
-# bounds_for`, the same one `pipeline/ensemble/02_validate.py` runs
-# against FCN3) rather than only inspecting the final result. Each
-# config also gets its own dedicated chapter (next in this section) with
-# a full diagnostic breakdown: which members are affected, which
-# variables, whether it's immediate or gradual, and whether it's just
-# absolute physical bounds or the *relative* consistency between
-# variables (and energy/mass conservation) that breaks down.
+# It runs SFNO under six configurations - `zero` (no perturbation, the
+# deterministic baseline), `Brown`/`Gaussian` static noise at several
+# amplitudes, and `bred_vector` (grows the perturbation via the model
+# itself rather than injecting a static offset) - each with one always-
+# `Zero()` control member (member 0) to anchor comparisons against, and
+# validates every step against this project's physical-plausibility
+# bounds table (`e2s.validation.bounds_for`, the same one `pipeline/
+# ensemble/02_validate.py` runs against FCN3) rather than only inspecting
+# the final result. Each config also gets its own dedicated chapter (next
+# in this section) with a full diagnostic breakdown: which members are
+# affected, which variables, whether it's immediate or gradual, and
+# whether it's just absolute physical bounds or the *relative*
+# consistency between variables (and energy/mass conservation) that
+# breaks down.
 #
 # See `pipeline/perturbation/01_run.py`'s module docstring for the full
 # methodology, including why the check is metrics-only rather than a
@@ -46,7 +48,7 @@ from e2s.paths import ProjPaths
 paths = ProjPaths()
 paths.ensure_directories()
 
-CONFIG_NAMES = ["zero", "brown_0.05", "brown_0.01", "brown_0.002", "gaussian_0.05"]
+CONFIG_NAMES = ["zero", "brown_0.05", "brown_0.01", "brown_0.002", "gaussian_0.05", "bred_vector"]
 
 # %% [markdown]
 # ## Summary: worst-variable violating fraction at the end of the rollout
@@ -78,11 +80,18 @@ print(summary.round(4))
 # %% [markdown]
 # The control column should sit at roughly the same ~0.05-0.07 baseline
 # in every row regardless of config - it's the same deterministic SFNO
-# forecast every time. The perturbed-member column is the real signal:
-# every perturbed config here ends up far higher than that baseline,
-# including the smallest amplitude tested (`brown_0.002`, 25x smaller
-# than the default `Brown` amplitude of 0.05).
+# forecast every time. The perturbed-member column tells two different
+# stories, though, and this single number can't distinguish them: for
+# `brown_0.05`/`brown_0.01`/`brown_0.002`/`gaussian_0.05`, a high value
+# means genuine, spreading divergence (see each chapter's panel B/D/E).
+# For `bred_vector`, a similarly-elevated number (~0.47) means something
+# much narrower - a stable, non-growing violation confined almost
+# entirely to two stratospheric-humidity variables already sitting at
+# noise-floor scale, while `t2m`, z-level ordering, kinetic energy, and
+# mass conservation all stay clean. The `bred_vector` chapter has the
+# full picture; don't read this table's single column in isolation for
+# that config.
 #
-# The next five chapters give each config its own full breakdown -
+# The next six chapters give each config its own full breakdown -
 # per-member, per-variable, cross-variable ordering, and energy/mass
 # conservation over the rollout.
