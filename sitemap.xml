@@ -29,6 +29,9 @@
     <loc>http://localhost:3000/notebooks/perturbation-gaussian-0-05</loc>
   </url>
   <url>
+    <loc>http://localhost:3000/notebooks/perturbation-bred-vector</loc>
+  </url>
+  <url>
     <loc>http://localhost:3000/notebooks/germany-population-weighted</loc>
   </url>
   <url>
