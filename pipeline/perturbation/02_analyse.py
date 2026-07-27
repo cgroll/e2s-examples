@@ -31,16 +31,23 @@ MUNICH_LAT, MUNICH_LON = 48.1372, 11.5755
 # Matches 01_run.py's NAE_LON_MIN/MAX/NAE_LAT_MIN/MAX exactly.
 NAE_EXTENT = [-80.0, 40.0, 30.0, 90.0]  # lon_min, lon_max, lat_min, lat_max
 
+IC_ROBUSTNESS_NAMES = ["ic_robustness_winter", "ic_robustness_spring", "ic_robustness_summer", "ic_robustness_autumn"]
+
 CONFIG_NAMES = [
-    "zero", "brown_0.05", "brown_0.01", "brown_0.002", "gaussian_0.05", "bred_vector",
-    "z500_brown_200", "zero_winter", "bred_vector_winter",
+    *IC_ROBUSTNESS_NAMES,
+    "zero", "brown_0.05", "brown_0.01", "brown_0.002",
+    "z500_brown_0.05", "z500_brown_0.01", "z500_brown_0.002", "bred_vector",
 ]
 
 COLOR_MEMBER = "#6E7B8B"
 COLOR_MEAN = "#1F5C99"
 COLOR_CONTROL = "#C9622A"  # member 0: always Zero() regardless of config - see 01_run.py
 
-GIF_FRAME_DURATION = 0.3
+# seconds per frame - passed to imageio as fps=1/GIF_FRAME_DURATION, not
+# duration=GIF_FRAME_DURATION: this imageio version (2.37.4) silently
+# ignores mimsave's duration= kwarg (every frame ends up with 0ms
+# duration regardless of its value) but does honor fps=.
+GIF_FRAME_DURATION = 0.6
 GIF_DPI = 100
 
 # Same thresholds pipeline/ensemble/02_validate.py uses for FCN3's
@@ -70,7 +77,11 @@ def wind_speed(ds):
 FIELD_SPECS = [
     ("t2m", "2m temperature (K)", lambda ds: ds["t2m"], "RdYlBu_r"),
     ("wind_speed10m", "10m wind speed (m/s)", wind_speed, "viridis"),
-    ("z500", "500 hPa geopotential (m^2/s^2)", lambda ds: ds["z500"], "RdYlBu_r"),
+    # viridis (not RdYlBu_r like t2m): z500's own std panel next to it is
+    # already viridis, and a shared yellow-purple scale makes the mean/std
+    # pair for this field easier to read together than a red-blue diverging
+    # scale that implies a meaningful zero-crossing z500 doesn't have.
+    ("z500", "500 hPa geopotential (m^2/s^2)", lambda ds: ds["z500"], "viridis"),
 ]
 
 
@@ -155,7 +166,7 @@ def render_mean_std_gif(ds, config_name, out_path):
         frames.append(np.asarray(fig.canvas.buffer_rgba()).copy())
 
     plt.close(fig)
-    imageio.mimsave(out_path, frames, duration=GIF_FRAME_DURATION, loop=0)
+    imageio.mimsave(out_path, frames, fps=1 / GIF_FRAME_DURATION, loop=0)
 
 
 # ---------------------------------------------------------------------------
@@ -224,12 +235,15 @@ def _heatmap_pivot(df, group_col):
 
 
 def _draw_heatmap(fig, ax, pivot, title, label_fontsize=6):
-    """Same visual convention as 03_validate_visualize.py's
-    plot_aggregate_heatmap (imshow, Reds, 0-1 range) - so a reader
-    comparing this project's two heatmap styles side by side (FCN3's
-    ensemble validation report vs. this sweep) is looking at the same
-    color scale and layout, not a bespoke one."""
-    mesh = ax.imshow(pivot.to_numpy(), aspect="auto", cmap="Reds", vmin=0, vmax=1, interpolation="none")
+    """Diverges from 03_validate_visualize.py's plot_aggregate_heatmap
+    (imshow, Reds, 0-1 range) in one deliberate way: green at exactly 0,
+    gradating through yellow to red as the violating fraction grows,
+    rather than white-to-red. Reds maps 0 to near-white, which reads the
+    same as "no data" - here 0 needs to read as a clear, positive "clean"
+    signal, since most configs in this sweep (e.g. any `z500_brown_*`
+    intensity) are genuinely, almost entirely 0 and that should be
+    obviously good, not just faint."""
+    mesh = ax.imshow(pivot.to_numpy(), aspect="auto", cmap="RdYlGn_r", vmin=0, vmax=1, interpolation="none")
     ax.set_yticks(range(len(pivot.index)))
     ax.set_yticklabels(pivot.index.tolist(), fontsize=label_fontsize)
     n_cols = pivot.shape[1]
@@ -383,7 +397,50 @@ def plot_config_dashboard(name, bounds_df, cross_variable_df, timeseries_df, out
     plt.close(fig)
 
 
+def plot_ic_robustness_comparison(names, out_path):
+    """One line per season - not per ensemble member, since these four
+    configs are single deterministic Zero() forecasts, not ensembles (see
+    01_run.py's IC_ROBUSTNESS_DATES/N_ENSEMBLE_OVERRIDES). Panel (A) is
+    the same "worst-variable" metric as every dashboard's panel A;
+    panel (B) isolates tcwv specifically, since that's the one variable
+    this project has repeatedly traced the baseline (unperturbed)
+    violating fraction back to - this comparison is the direct test of
+    whether that idiosyncrasy tracks the season's actual moisture
+    content."""
+    palette = ["#1F5C99", "#2E8B57", "#C9622A", "#8B3A9E"]
+    fig, axes = plt.subplots(2, 1, figsize=(10, 9), sharex=True)
+    for name, color in zip(names, palette):
+        bounds_path = metrics_dir / f"{name}_bounds.csv"
+        if not bounds_path.exists():
+            print(f"[WARN] no bounds data for '{name}' - skipping in IC-robustness comparison.")
+            continue
+        df = pd.read_csv(bounds_path)
+        worst = df.groupby("lead_time_hours")["violating_fraction"].max().sort_index()
+        axes[0].plot(worst.index, worst.values, label=name, color=color, linewidth=1.8, marker="o", markersize=3)
+        tcwv = df[df["variable"] == "tcwv"].groupby("lead_time_hours")["violating_fraction"].max().sort_index()
+        axes[1].plot(tcwv.index, tcwv.values, label=name, color=color, linewidth=1.8, marker="o", markersize=3)
+
+    axes[0].set_title("(A) worst-variable bounds-violating fraction, per season - single deterministic forecast, no perturbation")
+    axes[0].set_ylabel("Violating fraction")
+    axes[0].set_ylim(-0.02, 1.02)
+    axes[0].legend(fontsize=8, loc="upper left")
+
+    axes[1].set_title("(B) tcwv bounds-violating fraction, per season - the known baseline idiosyncrasy, isolated")
+    axes[1].set_ylabel("Violating fraction")
+    axes[1].set_xlabel("Lead time (hours since UTC init)")
+    axes[1].legend(fontsize=8, loc="upper left")
+
+    for ax in axes:
+        ax.grid(True, color="#DDDDDD", linewidth=0.6)
+    fig.tight_layout()
+    fig.savefig(out_path, dpi=150)
+    plt.close(fig)
+
+
 def main():
+    print("Rendering IC-robustness season comparison...")
+    plot_ic_robustness_comparison(IC_ROBUSTNESS_NAMES, output_dir / "ic_robustness_comparison.png")
+
     for name in CONFIG_NAMES:
         result = load_config(name)
         if result is None:

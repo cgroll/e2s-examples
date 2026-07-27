@@ -28,6 +28,10 @@ output_dir = paths.ensemble_analysis_path
 # Render every Nth lead_time step into the gifs (1 = every step). Bumping this
 # up trades animation smoothness for a lot less render time on long rollouts.
 GIF_STEP_STRIDE = 1
+# seconds per frame - passed to imageio as fps=1/GIF_FRAME_DURATION, not
+# duration=GIF_FRAME_DURATION: this imageio version (2.37.4) silently
+# ignores mimsave's duration= kwarg (every frame ends up with 0ms
+# duration regardless of its value) but does honor fps=.
 GIF_FRAME_DURATION = 0.15  # seconds per frame
 GIF_DPI = 100
 
@@ -83,7 +87,7 @@ def render_robinson_gif_scalar(ds, member_index, member_id, var_name, out_path, 
         frames.append(np.asarray(fig.canvas.buffer_rgba()).copy())
 
     plt.close(fig)
-    imageio.mimsave(out_path, frames, duration=GIF_FRAME_DURATION, loop=0)
+    imageio.mimsave(out_path, frames, fps=1 / GIF_FRAME_DURATION, loop=0)
 
 
 def render_robinson_gif_wind(ds, member_index, member_id, out_path):
@@ -133,7 +137,7 @@ def render_robinson_gif_wind(ds, member_index, member_id, out_path):
         frames.append(np.asarray(fig.canvas.buffer_rgba()).copy())
 
     plt.close(fig)
-    imageio.mimsave(out_path, frames, duration=GIF_FRAME_DURATION, loop=0)
+    imageio.mimsave(out_path, frames, fps=1 / GIF_FRAME_DURATION, loop=0)
 
 
 def render_robinson_gif_ensemble_std(ds, var_name, out_path, cmap, cbar_label):
@@ -170,7 +174,7 @@ def render_robinson_gif_ensemble_std(ds, var_name, out_path, cmap, cbar_label):
         frames.append(np.asarray(fig.canvas.buffer_rgba()).copy())
 
     plt.close(fig)
-    imageio.mimsave(out_path, frames, duration=GIF_FRAME_DURATION, loop=0)
+    imageio.mimsave(out_path, frames, fps=1 / GIF_FRAME_DURATION, loop=0)
 
 
 # ---------------------------------------------------------------------------

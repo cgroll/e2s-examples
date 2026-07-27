@@ -58,12 +58,12 @@ stages:
       size: 7937
     - path: pipeline/ensemble/04_analyse.py
       hash: md5
-      md5: fbfcec3b1843975aad7a9af5e20d4bf7
-      size: 16293
+      md5: 24204cdb4f77d5b42d24b7af9606919a
+      size: 16556
     outs:
     - path: data/ensemble/gifs
       hash: md5
-      md5: 3cd19f58959c50e209fce24f8f9dfb06.dir
+      md5: ae2d3348673b97e0c29bf60d07a13dd8.dir
       size: 29627040
       nfiles: 25
     - path: output/ensemble/analysis
@@ -75,14 +75,18 @@ stages:
     cmd: PYTHONPATH=. ${E2S_PYTHON:-/root/earth2studio-project/.venv/bin/python}
       pipeline/downscaling/01_run.py
     deps:
+    - path: e2s/perturbation.py
+      hash: md5
+      md5: 1e5c3e10101668db09e81fc6271a9798
+      size: 3969
     - path: pipeline/downscaling/01_run.py
       hash: md5
-      md5: 0f8f30eeeb781f2a9b7f16b7592cd3e9
-      size: 5221
+      md5: e73e945b317b4d060494a231e660cae2
+      size: 6410
     outs:
     - path: data/downscaling/sfno_downscaled.zarr
       hash: md5
-      md5: 6619755c26cc3715aea452fe4d700e5f.dir
+      md5: 91260e400ef44a4c57f1e8e4563e70f8.dir
       size: 2073623275
       nfiles: 515
   variable_subset_compare:
@@ -131,7 +135,7 @@ stages:
       nfiles: 17939
     - path: data/ensemble/gifs
       hash: md5
-      md5: 3cd19f58959c50e209fce24f8f9dfb06.dir
+      md5: ae2d3348673b97e0c29bf60d07a13dd8.dir
       size: 29627040
       nfiles: 25
     - path: e2s/validation.py
@@ -153,31 +157,31 @@ stages:
     outs:
     - path: book/notebooks/05_forecast_overview.ipynb
       hash: md5
-      md5: e635d627f600bcedc09f07e794e78eb4
-      size: 11763
+      md5: 7f8fe4ea4d67f4ece2f059c9843238d9
+      size: 11764
     - path: output/ensemble/book/spaghetti_t2m_munich.png
       hash: md5
       md5: 230734bcbb6f26b2d4ab39ba980311d5
       size: 306993
     - path: output/ensemble/book/t2m_robinson_member00.gif
       hash: md5
-      md5: fab29121725c1b40b62016b922b1a7ff
+      md5: fa064d2aa0826f8c76bfe1df4225c0d6
       size: 1223006
     - path: output/ensemble/book/t2m_robinson_member01.gif
       hash: md5
-      md5: 90d302dcc51a460e1868a5eb7d1be16c
+      md5: f1f0f0bbc9e313000a9c09bcb543ca0c
       size: 1206054
     - path: output/ensemble/book/t2m_std_robinson.gif
       hash: md5
-      md5: e62a7a49709e6651c921acad138a7670
+      md5: afacdbb05d127eb46b25dcfaee57a70e
       size: 763607
     - path: output/ensemble/book/wind10m_robinson_member00.gif
       hash: md5
-      md5: 920a8db9b88d45eadcba80aa58313299
+      md5: a968cb3f79d5c664967568b1da3166d2
       size: 1528937
     - path: output/ensemble/book/z500_robinson_member00.gif
       hash: md5
-      md5: 57659f416e481ee463d7929fa50b5bc6
+      md5: b8485f039d4400ba1a6a3b5a737d8ed0
       size: 847972
   ensemble_book_validation_report:
     cmd: MPLBACKEND=Agg PYTHONPATH=$(pwd) uv run jupytext --to notebook 
@@ -313,7 +317,7 @@ stages:
     deps:
     - path: data/downscaling/sfno_downscaled.zarr
       hash: md5
-      md5: 6619755c26cc3715aea452fe4d700e5f.dir
+      md5: 91260e400ef44a4c57f1e8e4563e70f8.dir
       size: 2073623275
       nfiles: 515
     - path: e2s/validation.py
@@ -322,18 +326,18 @@ stages:
       size: 7937
     - path: pipeline/downscaling/02_analyse.py
       hash: md5
-      md5: 41021c290079390224f788bec280307f
-      size: 13667
+      md5: 7714df53837e83e911d9c0dcb7714e7a
+      size: 13996
     outs:
     - path: data/downscaling/gifs
       hash: md5
-      md5: e9a1fe4a01bef2d1f7ed053a3c48a0ef.dir
-      size: 1913458
+      md5: 18f1e7518a5fe5d41333956fea752d54.dir
+      size: 4702345
       nfiles: 10
     - path: output/downscaling/analysis
       hash: md5
-      md5: 175e3bd41e1c8369556b027139d3d916.dir
-      size: 379614
+      md5: 1247754a174f72c73c0eae5bf60de800.dir
+      size: 378643
       nfiles: 3
   downscaling_book_overview:
     cmd: MPLBACKEND=Agg PYTHONPATH=$(pwd) uv run jupytext --to notebook 
@@ -345,17 +349,17 @@ stages:
     deps:
     - path: data/downscaling/gifs
       hash: md5
-      md5: e9a1fe4a01bef2d1f7ed053a3c48a0ef.dir
-      size: 1913458
+      md5: 18f1e7518a5fe5d41333956fea752d54.dir
+      size: 4702345
       nfiles: 10
     - path: output/downscaling/analysis/meteogram_t2m_munich_dense.png
       hash: md5
-      md5: b5cb97d430bce9b06ed54d9e521da7e1
-      size: 65890
+      md5: 7e7ab7e0d4bb8b64e82b288ef6c803a7
+      size: 64756
     - path: output/downscaling/analysis/meteogram_t2m_munich_native.png
       hash: md5
-      md5: 1fc8082bc6e1c45de03a5a6910dd84da
-      size: 39371
+      md5: 1ec2680812928694941971022f43cf5f
+      size: 41370
     - path: pipeline/_strip_jupytext_metadata.py
       hash: md5
       md5: 19bb5d4de197aa76a272664affdbccdf
@@ -367,24 +371,24 @@ stages:
     outs:
     - path: book/notebooks/09_downscaling_overview.ipynb
       hash: md5
-      md5: 297655f175498abb63d204b65cf6ce57
+      md5: 37ff54a3cc1c115ddc4f3fc15d2e1914
       size: 7668
     - path: output/downscaling/book/meteogram_t2m_munich_dense.png
       hash: md5
-      md5: b5cb97d430bce9b06ed54d9e521da7e1
-      size: 65890
+      md5: 7e7ab7e0d4bb8b64e82b288ef6c803a7
+      size: 64756
     - path: output/downscaling/book/meteogram_t2m_munich_native.png
       hash: md5
-      md5: 1fc8082bc6e1c45de03a5a6910dd84da
-      size: 39371
+      md5: 1ec2680812928694941971022f43cf5f
+      size: 41370
     - path: output/downscaling/book/t2m_robinson_dense_member00.gif
       hash: md5
-      md5: bfd38c691a71268f5ef7d44144b58a0a
-      size: 295897
+      md5: 5f65d762a793322f9a6f50e4ba32f0d7
+      size: 743875
     - path: output/downscaling/book/t2m_robinson_native_member00.gif
       hash: md5
-      md5: 682fe8d458142da6decc9da151884b92
-      size: 118788
+      md5: cab92ebc7a3976f73a7235bb301ac210
+      size: 191881
   germany_book_population_weighted:
     cmd: MPLBACKEND=Agg PYTHONPATH=$(pwd) uv run jupytext --to notebook 
       --execute --set-kernel e2s-gpu --output 
@@ -422,60 +426,64 @@ stages:
     cmd: PYTHONPATH=. ${E2S_PYTHON:-/root/earth2studio-project/.venv/bin/python}
       pipeline/perturbation/01_run.py
     deps:
+    - path: e2s/perturbation.py
+      hash: md5
+      md5: 1e5c3e10101668db09e81fc6271a9798
+      size: 3969
     - path: e2s/validation.py
       hash: md5
       md5: 8b084622c89fd4ea3d8ab9e414254102
       size: 7937
     - path: pipeline/perturbation/01_run.py
       hash: md5
-      md5: 804a4c25dd408396c4089a9e2c7fb915
-      size: 23956
+      md5: 9dfe976c59df6150619a29849f00f2e8
+      size: 24887
     outs:
     - path: data/perturbation
       hash: md5
-      md5: dc2a142e482c4913c57009cf777bd412.dir
-      size: 1402285905
-      nfiles: 3159
+      md5: cfe14e9d43fbf2af81a13ff0b73924b0.dir
+      size: 1402320940
+      nfiles: 3200
     - path: output/perturbation/metrics
       hash: md5
-      md5: c459b59ca4357bb51ad8f58697ed0ff3.dir
-      size: 5376664
-      nfiles: 27
+      md5: f3cffaa6d6bfe133e8299bcd4c3cbf03.dir
+      size: 5162260
+      nfiles: 36
   perturbation_analyse:
     cmd: PYTHONPATH=. ${E2S_PYTHON:-/root/earth2studio-project/.venv/bin/python}
       pipeline/perturbation/02_analyse.py
     deps:
     - path: data/perturbation
       hash: md5
-      md5: dc2a142e482c4913c57009cf777bd412.dir
-      size: 1402285905
-      nfiles: 3159
+      md5: cfe14e9d43fbf2af81a13ff0b73924b0.dir
+      size: 1402320940
+      nfiles: 3200
     - path: e2s/validation.py
       hash: md5
       md5: 8b084622c89fd4ea3d8ab9e414254102
       size: 7937
     - path: output/perturbation/metrics
       hash: md5
-      md5: c459b59ca4357bb51ad8f58697ed0ff3.dir
-      size: 5376664
-      nfiles: 27
+      md5: f3cffaa6d6bfe133e8299bcd4c3cbf03.dir
+      size: 5162260
+      nfiles: 36
     - path: pipeline/perturbation/02_analyse.py
       hash: md5
-      md5: 4bd13d09a19244c59d96844393fb0c05
-      size: 19970
+      md5: 029998fda7b7dca8dae364be98d829b4
+      size: 23199
     outs:
     - path: output/perturbation/analysis
       hash: md5
-      md5: 32b5cebd2e7fa99b8a68874f08aae458.dir
-      size: 24210292
-      nfiles: 54
+      md5: 5ddecbdeb4de40bea2da7343c240dfdd.dir
+      size: 29662750
+      nfiles: 65
   perturbation_book_overview:
     cmd: MPLBACKEND=Agg PYTHONPATH=$(pwd) uv run jupytext --to notebook 
       --execute --set-kernel e2s-gpu --output 
-      book/notebooks/11_perturbation_sweep.ipynb 
-      pipeline/perturbation/03_forecast_overview.py && uv run python 
+      book/notebooks/12_perturbation_sweep.ipynb 
+      pipeline/perturbation/04_forecast_overview.py && uv run python 
       pipeline/_strip_jupytext_metadata.py 
-      book/notebooks/11_perturbation_sweep.ipynb
+      book/notebooks/12_perturbation_sweep.ipynb
     deps:
     - path: output/perturbation/metrics/bred_vector_bounds.csv
       hash: md5
@@ -483,20 +491,28 @@ stages:
       size: 502589
     - path: output/perturbation/metrics/brown_0.002_bounds.csv
       hash: md5
-      md5: 64676fe74b7ad34f7c3076d73ae4b15f
-      size: 554399
+      md5: 99d40016c1a58a762f8ea5742b55454b
+      size: 492956
     - path: output/perturbation/metrics/brown_0.01_bounds.csv
       hash: md5
-      md5: 9b26a654547acf5fa3d0a7d8dd941d3d
-      size: 552362
+      md5: 9abe611d48a7209bbfecbab77842588a
+      size: 487167
     - path: output/perturbation/metrics/brown_0.05_bounds.csv
       hash: md5
-      md5: 0bd4d9d588d6460650668f4d82984dde
-      size: 546873
-    - path: output/perturbation/metrics/gaussian_0.05_bounds.csv
+      md5: 02f44764f96543ca267d3bd862dcdb79
+      size: 487259
+    - path: output/perturbation/metrics/z500_brown_0.002_bounds.csv
       hash: md5
-      md5: 48fa68fdd5d1d4ad282d6ecc3b5dc552
-      size: 558426
+      md5: 120e88d1af3776ea065d46d0d1ff0adf
+      size: 523045
+    - path: output/perturbation/metrics/z500_brown_0.01_bounds.csv
+      hash: md5
+      md5: c3a0b8058721017f13354de8d57e328c
+      size: 516886
+    - path: output/perturbation/metrics/z500_brown_0.05_bounds.csv
+      hash: md5
+      md5: 51344c3708545658bee0fefed9b7386a
+      size: 516956
     - path: output/perturbation/metrics/zero_bounds.csv
       hash: md5
       md5: 27dd981bd2a75eedd8a2389350ac3e57
@@ -505,35 +521,35 @@ stages:
       hash: md5
       md5: 19bb5d4de197aa76a272664affdbccdf
       size: 540
-    - path: pipeline/perturbation/03_forecast_overview.py
+    - path: pipeline/perturbation/04_forecast_overview.py
       hash: md5
-      md5: c73e8d401ee6a556f42dddad048057f4
-      size: 4688
+      md5: a8d83da3fdd16079a52a2ee57798a25e
+      size: 6213
     outs:
-    - path: book/notebooks/11_perturbation_sweep.ipynb
+    - path: book/notebooks/12_perturbation_sweep.ipynb
       hash: md5
-      md5: 78aeb4143617ade1558271f9a51302bb
-      size: 7445
+      md5: 3a14531f43e35fbf741a78831e8a9e7e
+      size: 15532
   perturbation_book_zero:
     cmd: MPLBACKEND=Agg PYTHONPATH=$(pwd) uv run jupytext --to notebook 
       --execute --set-kernel e2s-gpu --output 
-      book/notebooks/12_perturbation_zero.ipynb 
-      pipeline/perturbation/04_config_zero.py && uv run python 
+      book/notebooks/13_perturbation_zero.ipynb 
+      pipeline/perturbation/05_config_zero.py && uv run python 
       pipeline/_strip_jupytext_metadata.py 
-      book/notebooks/12_perturbation_zero.ipynb
+      book/notebooks/13_perturbation_zero.ipynb
     deps:
     - path: output/perturbation/analysis/zero_cross_variable_heatmap.png
       hash: md5
-      md5: 38cc11630ea19f933d89314ba39b96ac
-      size: 68573
+      md5: 9ad7794376e2d8c647fadb9e648a8194
+      size: 68588
     - path: output/perturbation/analysis/zero_dashboard.png
       hash: md5
-      md5: 91b213076db65109f3c7c6ec4b99719c
-      size: 301345
+      md5: 2b594e8f336978b95580cd18a5e6429d
+      size: 301307
     - path: output/perturbation/analysis/zero_mean_std.gif
       hash: md5
-      md5: 2e29c94dcf8eaa51018e4c0515c7c5a3
-      size: 1394024
+      md5: 5e265b729072d7b1e665732e3f802e57
+      size: 1320810
     - path: output/perturbation/analysis/zero_meteogram_t2m_munich.png
       hash: md5
       md5: 44b17e8d79fa34e9f939b6ea43dabc5f
@@ -544,59 +560,59 @@ stages:
       size: 93281
     - path: output/perturbation/analysis/zero_standalone_heatmap.png
       hash: md5
-      md5: c586c9c170f322246db4ba2d7aaadfeb
-      size: 133827
+      md5: 727a43b17b2574f0d44617bf0cca57c2
+      size: 133736
     - path: pipeline/_strip_jupytext_metadata.py
       hash: md5
       md5: 19bb5d4de197aa76a272664affdbccdf
       size: 540
-    - path: pipeline/perturbation/04_config_zero.py
+    - path: pipeline/perturbation/05_config_zero.py
       hash: md5
-      md5: e5fd2d59526d69f84c757d7b2e9557ea
-      size: 5280
+      md5: 9b0e67d1f5ef1b40e6ba1665839d568c
+      size: 5467
     outs:
-    - path: book/notebooks/12_perturbation_zero.ipynb
+    - path: book/notebooks/13_perturbation_zero.ipynb
       hash: md5
-      md5: 00387ca693e61158abae3304199720e6
-      size: 7593
+      md5: d4459e2fbd8aa49bc95f6e3831ce07a9
+      size: 7794
   perturbation_book_brown_0002:
     cmd: MPLBACKEND=Agg PYTHONPATH=$(pwd) uv run jupytext --to notebook 
       --execute --set-kernel e2s-gpu --output 
-      book/notebooks/15_perturbation_brown_0.002.ipynb 
-      pipeline/perturbation/07_config_brown_0002.py && uv run python 
+      book/notebooks/16_perturbation_brown_0.002.ipynb 
+      pipeline/perturbation/08_config_brown_0002.py && uv run python 
       pipeline/_strip_jupytext_metadata.py 
-      book/notebooks/15_perturbation_brown_0.002.ipynb
+      book/notebooks/16_perturbation_brown_0.002.ipynb
     deps:
     - path: output/perturbation/analysis/brown_0.002_dashboard.png
       hash: md5
-      md5: 93003091933b9a82c4ad68cff8ac69c1
-      size: 373354
+      md5: 0d49d2bb60ce14e6daa0bd9575e6337a
+      size: 303774
     - path: output/perturbation/analysis/brown_0.002_mean_std.gif
       hash: md5
-      md5: a5c75de15e393afc9eb991b092f2e8c0
-      size: 1730317
+      md5: 1560108fa44c788a1f8bc8644aad8bfa
+      size: 2309288
     - path: output/perturbation/analysis/brown_0.002_meteogram_t2m_munich.png
       hash: md5
-      md5: f3005a3e585240c86c0abb61e892d590
-      size: 70555
+      md5: f44d001fc0498bae232b943efde8dbba
+      size: 106714
     - path: 
         output/perturbation/analysis/brown_0.002_meteogram_wind10m_munich.png
       hash: md5
-      md5: 0713322551baa91ec241e443fd09934b
-      size: 68293
+      md5: 5bb2de4b0b1a58f78cc0568ee78103c4
+      size: 95110
     - path: pipeline/_strip_jupytext_metadata.py
       hash: md5
       md5: 19bb5d4de197aa76a272664affdbccdf
       size: 540
-    - path: pipeline/perturbation/07_config_brown_0002.py
+    - path: pipeline/perturbation/08_config_brown_0002.py
       hash: md5
-      md5: de2bfd0207d70c60afa71d2631f92da3
-      size: 4723
+      md5: b3de9535af2fb4a1079183221ba5b28b
+      size: 3261
     outs:
-    - path: book/notebooks/15_perturbation_brown_0.002.ipynb
+    - path: book/notebooks/16_perturbation_brown_0.002.ipynb
       hash: md5
-      md5: 45f77af15b4511beef34d023182153d6
-      size: 6775
+      md5: 480973d98cfa388ce6e2b34e30d42f13
+      size: 5137
   perturbation_book_gaussian_005:
     cmd: MPLBACKEND=Agg PYTHONPATH=$(pwd) uv run jupytext --to notebook 
       --execute --set-kernel e2s-gpu --output 
@@ -638,97 +654,97 @@ stages:
   perturbation_book_brown_001:
     cmd: MPLBACKEND=Agg PYTHONPATH=$(pwd) uv run jupytext --to notebook 
       --execute --set-kernel e2s-gpu --output 
-      book/notebooks/14_perturbation_brown_0.01.ipynb 
-      pipeline/perturbation/06_config_brown_001.py && uv run python 
+      book/notebooks/15_perturbation_brown_0.01.ipynb 
+      pipeline/perturbation/07_config_brown_001.py && uv run python 
       pipeline/_strip_jupytext_metadata.py 
-      book/notebooks/14_perturbation_brown_0.01.ipynb
+      book/notebooks/15_perturbation_brown_0.01.ipynb
     deps:
     - path: output/perturbation/analysis/brown_0.01_dashboard.png
       hash: md5
-      md5: 46261e46732b8d99fdbb51b8161b1bb3
-      size: 378068
+      md5: 789f668a1fcad85ebf9d83b3dbb9930e
+      size: 305838
     - path: output/perturbation/analysis/brown_0.01_mean_std.gif
       hash: md5
-      md5: e5821a29dac1e5b9fc16ad11a48525af
-      size: 1702683
+      md5: cbcaf62af24e21e890c47b906fd8f758
+      size: 2135523
     - path: output/perturbation/analysis/brown_0.01_meteogram_t2m_munich.png
       hash: md5
-      md5: 01e53f22c8cca689a16ec22031b61ef3
-      size: 64298
+      md5: 78b514726f4ba638d2e3e392ab6b1cc7
+      size: 108617
     - path: output/perturbation/analysis/brown_0.01_meteogram_wind10m_munich.png
       hash: md5
-      md5: c6da7c758c05e9c56430d053e8b9be4e
-      size: 60771
+      md5: 12641aa9e9e48dd92e201f58cadb927f
+      size: 98346
     - path: pipeline/_strip_jupytext_metadata.py
       hash: md5
       md5: 19bb5d4de197aa76a272664affdbccdf
       size: 540
-    - path: pipeline/perturbation/06_config_brown_001.py
+    - path: pipeline/perturbation/07_config_brown_001.py
       hash: md5
-      md5: 9c61d71c3f895ebeb6166121065796cf
-      size: 3436
+      md5: 73f84c3f05a39fdcd6c95fba809c3b7e
+      size: 2860
     outs:
-    - path: book/notebooks/14_perturbation_brown_0.01.ipynb
+    - path: book/notebooks/15_perturbation_brown_0.01.ipynb
       hash: md5
-      md5: 7a0ab581a1e64f3d02171145555129c9
-      size: 5331
+      md5: 58e19a5928c8cca7a6338ddaa6e29e42
+      size: 4682
   perturbation_book_brown_005:
     cmd: MPLBACKEND=Agg PYTHONPATH=$(pwd) uv run jupytext --to notebook 
       --execute --set-kernel e2s-gpu --output 
-      book/notebooks/13_perturbation_brown_0.05.ipynb 
-      pipeline/perturbation/05_config_brown_005.py && uv run python 
+      book/notebooks/14_perturbation_brown_0.05.ipynb 
+      pipeline/perturbation/06_config_brown_005.py && uv run python 
       pipeline/_strip_jupytext_metadata.py 
-      book/notebooks/13_perturbation_brown_0.05.ipynb
+      book/notebooks/14_perturbation_brown_0.05.ipynb
     deps:
     - path: output/perturbation/analysis/brown_0.05_dashboard.png
       hash: md5
-      md5: fe448f1518576452f561ac43df1e66e8
-      size: 376319
+      md5: 457f2a4c3adf8ed5f64456fec2147f2c
+      size: 310772
     - path: output/perturbation/analysis/brown_0.05_mean_std.gif
       hash: md5
-      md5: 8d83d9d9675848392f2ce6942bc047ec
-      size: 1763658
+      md5: 7b8da89171e92c4153c9edade7bc9963
+      size: 2150131
     - path: output/perturbation/analysis/brown_0.05_meteogram_t2m_munich.png
       hash: md5
-      md5: dd0a69ff0764c54791855d96f7124dc1
-      size: 64091
+      md5: a0d57ff4b8195a1142c960316f71e71c
+      size: 113867
     - path: output/perturbation/analysis/brown_0.05_meteogram_wind10m_munich.png
       hash: md5
-      md5: d5c947868a5683cee26ea880de95c7cc
-      size: 58474
+      md5: 952fb1a5df135b16dff23f8fcc8335a8
+      size: 100629
     - path: pipeline/_strip_jupytext_metadata.py
       hash: md5
       md5: 19bb5d4de197aa76a272664affdbccdf
       size: 540
-    - path: pipeline/perturbation/05_config_brown_005.py
+    - path: pipeline/perturbation/06_config_brown_005.py
       hash: md5
-      md5: 300503d645f1f6b4414185888224c20b
-      size: 3765
+      md5: cb6dc99ca4eca21f6c55c38d8cf76107
+      size: 3529
     outs:
-    - path: book/notebooks/13_perturbation_brown_0.05.ipynb
+    - path: book/notebooks/14_perturbation_brown_0.05.ipynb
       hash: md5
-      md5: 89e2302b2b43c759a7abb0319d755012
-      size: 5704
+      md5: a07a2cb9af0ca8e7d874fe7665781cea
+      size: 5421
   perturbation_book_bred_vector:
     cmd: MPLBACKEND=Agg PYTHONPATH=$(pwd) uv run jupytext --to notebook 
       --execute --set-kernel e2s-gpu --output 
-      book/notebooks/17_perturbation_bred_vector.ipynb 
-      pipeline/perturbation/09_config_bred_vector.py && uv run python 
+      book/notebooks/20_perturbation_bred_vector.ipynb 
+      pipeline/perturbation/12_config_bred_vector.py && uv run python 
       pipeline/_strip_jupytext_metadata.py 
-      book/notebooks/17_perturbation_bred_vector.ipynb
+      book/notebooks/20_perturbation_bred_vector.ipynb
     deps:
     - path: output/perturbation/analysis/bred_vector_cross_variable_heatmap.png
       hash: md5
-      md5: c8675e152233e1e522d9e291aa7a8e9e
-      size: 69813
+      md5: 5c346e38ca7636fd368c5b23986858cc
+      size: 69830
     - path: output/perturbation/analysis/bred_vector_dashboard.png
       hash: md5
-      md5: eec74ac74411a54fed45568d25416a82
-      size: 334373
+      md5: be0967197695182d590444df54cdfa52
+      size: 334948
     - path: output/perturbation/analysis/bred_vector_mean_std.gif
       hash: md5
-      md5: 3fcd43dc0ab98b63d81b6a33194ad29c
-      size: 2308139
+      md5: e2804269476091d2a185e7239397082b
+      size: 2182030
     - path: output/perturbation/analysis/bred_vector_meteogram_t2m_munich.png
       hash: md5
       md5: e4f50d1d7378724c6feedb9b3f178c1d
@@ -740,21 +756,21 @@ stages:
       size: 88585
     - path: output/perturbation/analysis/bred_vector_standalone_heatmap.png
       hash: md5
-      md5: 406f8f827cecc4be8f935787a0e17bcc
-      size: 136218
+      md5: d3e05704224aeafb700c8934f04832ba
+      size: 135851
     - path: pipeline/_strip_jupytext_metadata.py
       hash: md5
       md5: 19bb5d4de197aa76a272664affdbccdf
       size: 540
-    - path: pipeline/perturbation/09_config_bred_vector.py
+    - path: pipeline/perturbation/12_config_bred_vector.py
       hash: md5
-      md5: 7098059b330b3f27d7e1a94429e3c0cc
-      size: 6298
+      md5: 49d2549b3e54a2269aade78b11e0c111
+      size: 6767
     outs:
-    - path: book/notebooks/17_perturbation_bred_vector.ipynb
+    - path: book/notebooks/20_perturbation_bred_vector.ipynb
       hash: md5
-      md5: dc8312de490889f04f5d12132d57eea1
-      size: 8770
+      md5: e64a45cc54306a572575fd01c8671161
+      size: 9288
   perturbation_book_robustness_season:
     cmd: MPLBACKEND=Agg PYTHONPATH=$(pwd) uv run jupytext --to notebook 
       --execute --set-kernel e2s-gpu --output 
@@ -830,3 +846,161 @@ stages:
       hash: md5
       md5: 7a9599ab8c151f48f7aaedf11d669e3e
       size: 6289
+  perturbation_book_ic_robustness:
+    cmd: MPLBACKEND=Agg PYTHONPATH=$(pwd) uv run jupytext --to notebook 
+      --execute --set-kernel e2s-gpu --output 
+      book/notebooks/11_perturbation_ic_robustness.ipynb 
+      pipeline/perturbation/03_ic_robustness.py && uv run python 
+      pipeline/_strip_jupytext_metadata.py 
+      book/notebooks/11_perturbation_ic_robustness.ipynb
+    deps:
+    - path: output/perturbation/analysis/ic_robustness_comparison.png
+      hash: md5
+      md5: 12fcf42060d3f97bca6e780e2582394f
+      size: 200950
+    - path: output/perturbation/metrics/ic_robustness_autumn_bounds.csv
+      hash: md5
+      md5: 8a1e7aae71931815e177835673f102c4
+      size: 136963
+    - path: output/perturbation/metrics/ic_robustness_spring_bounds.csv
+      hash: md5
+      md5: a2c3d43c520d53c2b734330e0a3d3c14
+      size: 136797
+    - path: output/perturbation/metrics/ic_robustness_summer_bounds.csv
+      hash: md5
+      md5: 2b90e9164a50a0d03f4205bd88c79b20
+      size: 136993
+    - path: output/perturbation/metrics/ic_robustness_winter_bounds.csv
+      hash: md5
+      md5: 26f0cadfc9d4d511db36776702af361d
+      size: 137043
+    - path: pipeline/_strip_jupytext_metadata.py
+      hash: md5
+      md5: 19bb5d4de197aa76a272664affdbccdf
+      size: 540
+    - path: pipeline/perturbation/03_ic_robustness.py
+      hash: md5
+      md5: b8b12e4ff067dd10b1a2c01980d5115d
+      size: 4942
+    outs:
+    - path: book/notebooks/11_perturbation_ic_robustness.ipynb
+      hash: md5
+      md5: aeda37695d0acb8ff7836dacbf00fd4e
+      size: 8494
+  perturbation_book_z500_brown_005:
+    cmd: MPLBACKEND=Agg PYTHONPATH=$(pwd) uv run jupytext --to notebook 
+      --execute --set-kernel e2s-gpu --output 
+      book/notebooks/17_perturbation_z500_brown_0.05.ipynb 
+      pipeline/perturbation/09_config_z500_brown_005.py && uv run python 
+      pipeline/_strip_jupytext_metadata.py 
+      book/notebooks/17_perturbation_z500_brown_0.05.ipynb
+    deps:
+    - path: output/perturbation/analysis/z500_brown_0.05_dashboard.png
+      hash: md5
+      md5: 0ab7b45e23029e008895f97e5863301f
+      size: 306534
+    - path: output/perturbation/analysis/z500_brown_0.05_mean_std.gif
+      hash: md5
+      md5: aab87295c623e3ba4263790e36009bdd
+      size: 2154728
+    - path: 
+        output/perturbation/analysis/z500_brown_0.05_meteogram_t2m_munich.png
+      hash: md5
+      md5: ce6bec738ccb49a3589e764651da903b
+      size: 109573
+    - path: 
+        output/perturbation/analysis/z500_brown_0.05_meteogram_wind10m_munich.png
+      hash: md5
+      md5: 30a50086f8dbf1b2f17f6c361fb355d4
+      size: 100694
+    - path: pipeline/_strip_jupytext_metadata.py
+      hash: md5
+      md5: 19bb5d4de197aa76a272664affdbccdf
+      size: 540
+    - path: pipeline/perturbation/09_config_z500_brown_005.py
+      hash: md5
+      md5: 8e18fab37a52fef1c6d371c01102ae7f
+      size: 3416
+    outs:
+    - path: book/notebooks/17_perturbation_z500_brown_0.05.ipynb
+      hash: md5
+      md5: d236f2d3e58eb14ede5295409b7f1c8e
+      size: 5306
+  perturbation_book_z500_brown_0002:
+    cmd: MPLBACKEND=Agg PYTHONPATH=$(pwd) uv run jupytext --to notebook 
+      --execute --set-kernel e2s-gpu --output 
+      book/notebooks/19_perturbation_z500_brown_0.002.ipynb 
+      pipeline/perturbation/11_config_z500_brown_0002.py && uv run python 
+      pipeline/_strip_jupytext_metadata.py 
+      book/notebooks/19_perturbation_z500_brown_0.002.ipynb
+    deps:
+    - path: output/perturbation/analysis/z500_brown_0.002_dashboard.png
+      hash: md5
+      md5: db1218cd6a1b4604a6043781d92f7c49
+      size: 304262
+    - path: output/perturbation/analysis/z500_brown_0.002_mean_std.gif
+      hash: md5
+      md5: d2e2ca2f2ee04fd1d98538c97ff68d21
+      size: 2434045
+    - path: 
+        output/perturbation/analysis/z500_brown_0.002_meteogram_t2m_munich.png
+      hash: md5
+      md5: f05a7b5e1f1a5ff9acc547df1deccd2e
+      size: 107081
+    - path: 
+        output/perturbation/analysis/z500_brown_0.002_meteogram_wind10m_munich.png
+      hash: md5
+      md5: 17a0a6a554d73407be284de05add86d8
+      size: 94896
+    - path: pipeline/_strip_jupytext_metadata.py
+      hash: md5
+      md5: 19bb5d4de197aa76a272664affdbccdf
+      size: 540
+    - path: pipeline/perturbation/11_config_z500_brown_0002.py
+      hash: md5
+      md5: dedb2b08986958b447ea8884d48e892e
+      size: 2770
+    outs:
+    - path: book/notebooks/19_perturbation_z500_brown_0.002.ipynb
+      hash: md5
+      md5: f69fa096489aa23fea0fad1d101526f4
+      size: 4591
+  perturbation_book_z500_brown_001:
+    cmd: MPLBACKEND=Agg PYTHONPATH=$(pwd) uv run jupytext --to notebook 
+      --execute --set-kernel e2s-gpu --output 
+      book/notebooks/18_perturbation_z500_brown_0.01.ipynb 
+      pipeline/perturbation/10_config_z500_brown_001.py && uv run python 
+      pipeline/_strip_jupytext_metadata.py 
+      book/notebooks/18_perturbation_z500_brown_0.01.ipynb
+    deps:
+    - path: output/perturbation/analysis/z500_brown_0.01_dashboard.png
+      hash: md5
+      md5: c43dc1d266fac135c1105ba3b21bd45d
+      size: 304922
+    - path: output/perturbation/analysis/z500_brown_0.01_mean_std.gif
+      hash: md5
+      md5: cdd7914935b6b12a630d0696a458ca37
+      size: 2169910
+    - path: 
+        output/perturbation/analysis/z500_brown_0.01_meteogram_t2m_munich.png
+      hash: md5
+      md5: b39ef734c8326a121dcb203134c03de6
+      size: 108890
+    - path: 
+        output/perturbation/analysis/z500_brown_0.01_meteogram_wind10m_munich.png
+      hash: md5
+      md5: d723ff42c7ee7ef8e21048dd9e1a1a5a
+      size: 97892
+    - path: pipeline/_strip_jupytext_metadata.py
+      hash: md5
+      md5: 19bb5d4de197aa76a272664affdbccdf
+      size: 540
+    - path: pipeline/perturbation/10_config_z500_brown_001.py
+      hash: md5
+      md5: 83dca8852ceeb1c6205dd3ff99797579
+      size: 2544
+    outs:
+    - path: book/notebooks/18_perturbation_z500_brown_0.01.ipynb
+      hash: md5
+      md5: ba857870a5d71e6de2acb19e5e8a8fc8
+      size: 4350

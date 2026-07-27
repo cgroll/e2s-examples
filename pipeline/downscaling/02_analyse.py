@@ -46,7 +46,12 @@ NATIVE_STEP_HOURS = 6
 # native-only gif's frames each represent NATIVE_STEP_HOURS times as much
 # simulated time, so its frame duration is scaled up by the same factor -
 # both gifs then reach the same simulated hour at the same wall-clock time,
-# not just finish at the same total length.
+# not just finish at the same total length. Passed to imageio as
+# fps=1/frame_duration, not duration=frame_duration: this imageio version
+# (2.37.4) silently ignores mimsave's duration= kwarg (every frame ends up
+# with 0ms duration regardless of its value, which is what made the dense
+# and native gifs play at the same speed despite this scaling) but does
+# honor fps=.
 DENSE_FRAME_DURATION = 0.15  # seconds per simulated hour, dense gif
 NATIVE_FRAME_DURATION = DENSE_FRAME_DURATION * NATIVE_STEP_HOURS
 
@@ -109,7 +114,7 @@ def render_robinson_gif_t2m(ds, member_index, member_id, lead_time_indices, out_
         frames.append(np.asarray(fig.canvas.buffer_rgba()).copy())
 
     plt.close(fig)
-    imageio.mimsave(out_path, frames, duration=frame_duration, loop=0)
+    imageio.mimsave(out_path, frames, fps=1 / frame_duration, loop=0)
 
 
 # ---------------------------------------------------------------------------

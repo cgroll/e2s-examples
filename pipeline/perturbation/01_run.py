@@ -13,13 +13,33 @@ tolerate IC perturbation, and at what amplitude" from the added
 complexity of the interpolation wrapper, by running bare SFNO (no
 InterpModAFNO) directly.
 
-Trimmed config sweep for this first pass (not the full comparison
-pipeline/ensemble's dormant sibling script sweeps for FCN3): reproduce
-the exact blow-up config (brown_0.05) against bare SFNO first - if it
-still blows up without InterpModAFNO in the loop, that rules out the
-interpolation wrapper as the cause - then two smaller Brown amplitudes to
-find where stability returns, plus one IID Gaussian at the original
-amplitude for comparison against Brown's spatially-correlated noise.
+Two questions this sweep answers, in this order:
+
+1. Is SFNO's own deterministic (unperturbed) rollout even reliably valid
+   across different times of year, before any perturbation is added at
+   all? Answered by the `ic_robustness_*` configs: four single (not
+   ensemble - every member would be bit-identical anyway, since SFNO has
+   no internal stochasticity and Zero() adds nothing) Zero()-perturbation
+   forecasts, one per season, from four different initial-condition
+   dates. This runs first (see the book chapter ordering) because
+   everything downstream implicitly assumes the answer is "yes, modulo a
+   known tcwv idiosyncrasy" - worth establishing directly rather than
+   inferring from a single date.
+2. Given that baseline, which perturbation strategies stay within
+   physical bounds well enough to be usable for ensemble generation? Two
+   families are tested, both now calibrated per-variable rather than with
+   one flat amplitude (see e2s.perturbation.ScaledBrownPerturbation for
+   why the original flat-amplitude version was abandoned - the same
+   module pipeline/downscaling/01_run.py now uses too): `brown_*` (all
+   73 variables, three intensities) and `z500_brown_*` (z500 only, same
+   three intensities, via e2s.perturbation.SingleVariablePerturbation) -
+   plus `bred_vector` (grows the perturbation via the model itself, not
+   a static offset).
+   Gaussian is dropped from this sweep: it failed for exactly the same
+   flat-amplitude reason Brown did in the earlier version of this
+   experiment, and the scaled-amplitude fix that matters here is
+   Brown-specific (Gaussian's IID-per-gridpoint noise doesn't have a
+   spatial reddening parameter to calibrate the same way).
 
 Per-step validation: earth2studio's run.ensemble() applies its
 perturbation exactly once and owns the rollout loop opaquely (see
@@ -62,32 +82,34 @@ Member 0 is always run with Zero() perturbation regardless of config - a
 config-agnostic control trajectory (SFNO is deterministic without
 perturbation, so this is the same physical forecast every time) to
 anchor comparisons (meteograms, gifs) against, even for configs where
-every other member is perturbed.
+every other member is perturbed. The `ic_robustness_*` and `zero`
+configs use Zero() for every member anyway, so this rule is a no-op for
+them - they're already 100% control.
 
 Per-step injection (like the FCN3 script's per_step_brown) is
-deliberately left out of this first pass - all five configs below are
-IC-only. Can be added later following the same manual-loop pattern if
-the IC-only sweep turns out inconclusive.
+deliberately left out of this first pass - all configs below are IC-only.
 
 bred_vector was added after the fact, once zero/brown/gaussian all
-turned out to diverge regardless of amplitude: unlike those, it doesn't
-add a static offset in raw physical units - it grows the perturbation by
-running the model itself for `integration_steps` internal steps on a
-lightly-seeded start, then rescales the result to `noise_amplitude`
-relative to the state's own norm (see earth2studio.perturbation.
-BredVector.__call__: `gamma = norm(x) / norm(x + dx)`). That
-self-relative scaling is the whole point - it doesn't force one flat
-amplitude onto all 73 variables regardless of their physical scale, the
-way Brown/Gaussian do. Seeded with Brown(noise_amplitude=0.002) - the
-smallest, least-catastrophic amplitude from the earlier sweep - since
-the seed still has to survive 20 internal model steps before it's
-rescaled into the final perturbation; a seed that immediately diverges
-would just bred a diverged direction. HemisphericCentredBredVector (the
-HENS-style variant used in NVIDIA's "Huge Ensembles" paper) was
-considered too, but it exposes a generator-based API
-(`create_generator`), not the simple `(x, coords) -> (x, coords)`
-interface every other perturbation method here uses - adapting the
-manual rollout loop for that is a bigger change, left for later if
+turned out to diverge regardless of (flat) amplitude: unlike those, it
+doesn't add a static offset in raw physical units - it grows the
+perturbation by running the model itself for `integration_steps`
+internal steps on a lightly-seeded start, then rescales the result to
+`noise_amplitude` relative to the state's own norm (see
+earth2studio.perturbation.BredVector.__call__: `gamma = norm(x) /
+norm(x + dx)`). That self-relative scaling is the whole point - it
+doesn't force one flat amplitude onto all 73 variables regardless of
+their physical scale, the same problem ScaledBrownPerturbation fixes for
+Brown a different way (explicit per-variable calibration instead of
+implicit self-normalization). Seeded with Brown(noise_amplitude=0.002) -
+the smallest, least-catastrophic amplitude from the original flat-
+amplitude sweep - since the seed still has to survive 20 internal model
+steps before it's rescaled into the final perturbation; a seed that
+immediately diverges would just bred a diverged direction.
+HemisphericCentredBredVector (the HENS-style variant used in NVIDIA's
+"Huge Ensembles" paper) was considered too, but it exposes a generator-
+based API (`create_generator`), not the simple `(x, coords) -> (x,
+coords)` interface every other perturbation method here uses - adapting
+the manual rollout loop for that is a bigger change, left for later if
 bred_vector itself doesn't pan out.
 """
 
@@ -100,11 +122,12 @@ import torch
 from earth2studio.data import GFS, fetch_data
 from earth2studio.io import ZarrBackend
 from earth2studio.models.px import SFNO
-from earth2studio.perturbation import Brown, BredVector, Gaussian, Zero
+from earth2studio.perturbation import Brown, BredVector, Zero
 from earth2studio.utils.coords import map_coords, split_coords
 from earth2studio.utils.time import to_time_array
 
 from e2s.paths import ProjPaths
+from e2s.perturbation import ScaledBrownPerturbation, SingleVariablePerturbation, compute_variable_scales
 from e2s.validation import bounds_for
 
 paths = ProjPaths()
@@ -166,67 +189,62 @@ Z_LEVELS = sorted(
     if (m := re.match(r"^z(\d+)$", name))
 )
 
-class SingleVariablePerturbation:
-    """Wraps a base perturbation (e.g. Brown) and applies it to only one
-    named variable's channel, leaving every other variable exactly at its
-    raw IC value. Tests a specific hypothesis from the earlier sweep:
-    Brown/Gaussian's flat noise_amplitude=0.05 is negligible for z500
-    (~55000 m^2/s^2 scale) and catastrophic for e.g. u10m (~1.3 m/s scale)
-    when applied to all 73 variables at once - so the amplitude was never
-    actually "small" in any variable-appropriate sense for most of the
-    state. Perturbing z500 alone, at an amplitude chosen relative to its
-    own scale (tens to hundreds of m^2/s^2, not 0.05), isolates whether a
-    properly-scaled single-variable perturbation is more tolerable, or
-    whether SFNO is just broadly intolerant of any IC deviation from an
-    unperturbed analysis regardless of which variable it's in."""
 
-    def __init__(self, variable_name, base_perturbation):
-        self.variable_name = variable_name
-        self.base_perturbation = base_perturbation
-
-    def __call__(self, x, coords):
-        x_perturbed, coords = self.base_perturbation(x, coords)
-        var_names = list(coords["variable"])
-        var_axis = list(coords.keys()).index("variable")
-        idx = var_names.index(self.variable_name)
-        out = x.clone()
-        out.select(var_axis, idx).copy_(x_perturbed.select(var_axis, idx))
-        return out, coords
+def make_scaled_brown(intensity):
+    """Config builder: computes variable_scales from that config's own
+    fetched IC (x0, coords0), not a module-level constant - see
+    run_config, which calls builders after fetch_data returns."""
+    def builder(x0, coords0):
+        return ScaledBrownPerturbation(compute_variable_scales(x0, coords0), intensity)
+    return builder
 
 
-# See module docstring for why brown_0.05 (earth2studio's own default
-# amplitude, and downscaling/01_run.py's current choice) is deliberately
-# included here even though we already know it breaks SFNO+InterpModAFNO.
+def make_z500_scaled_brown(intensity):
+    def builder(x0, coords0):
+        scales = compute_variable_scales(x0, coords0)
+        return SingleVariablePerturbation("z500", ScaledBrownPerturbation(scales, intensity))
+    return builder
+
+
+def make_bred_vector():
+    def builder(x0, coords0):
+        return BredVector(
+            model=model, noise_amplitude=0.05,
+            seeding_perturbation_method=Brown(noise_amplitude=0.002),
+        )
+    return builder
+
+
+# Four single (N_ENSEMBLE=1), unperturbed initial-condition dates, one per
+# season - see module docstring's point (1). All in the past relative to
+# this project's "today" so GFS has analysis data for them; 2026-07-23
+# doubles as this sweep's main date elsewhere (`zero`, `brown_*`,
+# `z500_brown_*`, `bred_vector` all use it too).
+IC_ROBUSTNESS_DATES = {
+    "ic_robustness_winter": "2026-01-15T00:00:00",
+    "ic_robustness_spring": "2026-04-15T00:00:00",
+    "ic_robustness_summer": "2026-07-23T00:00:00",
+    "ic_robustness_autumn": "2025-10-15T00:00:00",
+}
+
+# Every entry is a builder: (x0, coords0) -> Perturbation. Even the
+# configs that don't need the IC (Zero, bred_vector) take the same
+# signature so run_config can treat every config uniformly - see
+# run_config, which fetches data once per config, then calls the builder.
 CONFIGS = {
-    "zero": Zero(),
-    "brown_0.05": Brown(noise_amplitude=0.05),
-    "brown_0.01": Brown(noise_amplitude=0.01),
-    "brown_0.002": Brown(noise_amplitude=0.002),
-    "gaussian_0.05": Gaussian(noise_amplitude=0.05, seed=0),
-    "bred_vector": BredVector(
-        model=model, noise_amplitude=0.05,
-        seeding_perturbation_method=Brown(noise_amplitude=0.002),
-    ),
-    "z500_brown_200": SingleVariablePerturbation("z500", Brown(noise_amplitude=200.0)),
-    # Robustness check: same two most-informative configs (the clean
-    # deterministic baseline, and the one method that worked), rerun
-    # under a different season's initial condition - tests whether the
-    # baseline tcwv/humidity idiosyncrasy documented throughout this
-    # sweep is a property of this specific date or of SFNO generally.
-    "zero_winter": Zero(),
-    "bred_vector_winter": BredVector(
-        model=model, noise_amplitude=0.05,
-        seeding_perturbation_method=Brown(noise_amplitude=0.002),
-    ),
+    **{name: (lambda x0, coords0: Zero()) for name in IC_ROBUSTNESS_DATES},
+    "zero": lambda x0, coords0: Zero(),
+    "brown_0.05": make_scaled_brown(0.05),
+    "brown_0.01": make_scaled_brown(0.01),
+    "brown_0.002": make_scaled_brown(0.002),
+    "z500_brown_0.05": make_z500_scaled_brown(0.05),
+    "z500_brown_0.01": make_z500_scaled_brown(0.01),
+    "z500_brown_0.002": make_z500_scaled_brown(0.002),
+    "bred_vector": make_bred_vector(),
 }
 
-# Only the two "_winter" configs use a different initial condition date
-# (2026-01-15, northern-hemisphere winter, vs. the sweep's usual
-# 2026-07-23) - see the comment above CONFIGS.
-START_DATE_OVERRIDES = {
-    "zero_winter": "2026-01-15T00:00:00",
-    "bred_vector_winter": "2026-01-15T00:00:00",
-}
+START_DATE_OVERRIDES = dict(IC_ROBUSTNESS_DATES)
+N_ENSEMBLE_OVERRIDES = {name: 1 for name in IC_ROBUSTNESS_DATES}
 
 
 def nae_crop_masks(lat, lon):
@@ -409,13 +427,14 @@ def select_stored(x, coords, lat_mask, lon_mask):
     return x, coords
 
 
-def run_config(name, cfg_perturbation):
+def run_config(name, cfg_builder):
     zarr_path = paths.perturbation_zarr_path(name)
     if zarr_path.exists():
         print(f"[SKIP] {name}: {zarr_path} already exists.")
         return
     start_date = START_DATE_OVERRIDES.get(name, START_DATE)
-    print(f"\n=== {name} (start_date={start_date}) ===")
+    n_ensemble = N_ENSEMBLE_OVERRIDES.get(name, N_ENSEMBLE)
+    print(f"\n=== {name} (start_date={start_date}, n_ensemble={n_ensemble}) ===")
     io = ZarrBackend(str(zarr_path))
 
     prognostic_ic = model.input_coords()
@@ -424,6 +443,7 @@ def run_config(name, cfg_perturbation):
         source=data, time=time, variable=prognostic_ic["variable"],
         lead_time=prognostic_ic["lead_time"], device=device,
     )
+    cfg_perturbation = cfg_builder(x0, coords0)
 
     native_coords = model.output_coords(model.input_coords())
     lat_mask, lon_mask = nae_crop_masks(native_coords["lat"], native_coords["lon"])
@@ -435,7 +455,7 @@ def run_config(name, cfg_perturbation):
     ).flatten()
 
     total_coords = {
-        "ensemble": np.arange(N_ENSEMBLE),
+        "ensemble": np.arange(n_ensemble),
         "time": time,
         "lead_time": lead_time_out,
         "lat": cropped_lat,
@@ -448,7 +468,7 @@ def run_config(name, cfg_perturbation):
     cross_variable_rows = []
     timeseries_rows = []
 
-    for member_id in range(N_ENSEMBLE):
+    for member_id in range(n_ensemble):
         perturbation = Zero() if member_id == 0 else cfg_perturbation
         tag = "control (Zero)" if member_id == 0 else name
         print(f"  member {member_id} [{tag}] ...")
@@ -489,7 +509,7 @@ def run_config(name, cfg_perturbation):
           f"cross-variable metrics to {cross_variable_path}, global-mean timeseries to {timeseries_path}")
 
 
-for config_name, perturbation in CONFIGS.items():
-    run_config(config_name, perturbation)
+for config_name, cfg_builder in CONFIGS.items():
+    run_config(config_name, cfg_builder)
 
 print("\nAll perturbation configurations complete.")

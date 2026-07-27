@@ -146,6 +146,7 @@ stages:
     cmd: PYTHONPATH=. \${E2S_PYTHON:-/root/earth2studio-project/.venv/bin/python} pipeline/downscaling/01_run.py
     deps:
       - pipeline/downscaling/01_run.py
+      - e2s/perturbation.py
     outs:
       - data/downscaling/sfno_downscaled.zarr:
           persist: true
@@ -253,6 +254,7 @@ stages:
     cmd: PYTHONPATH=. \${E2S_PYTHON:-/root/earth2studio-project/.venv/bin/python} pipeline/perturbation/01_run.py
     deps:
       - pipeline/perturbation/01_run.py
+      - e2s/perturbation.py
       - e2s/validation.py
     outs:
       - data/perturbation:
@@ -272,29 +274,54 @@ stages:
       - output/perturbation/analysis:
           cache: false
 
+  # IC-robustness runs first (see book/myst.yml's TOC): before picking a
+  # perturbation strategy at all, does bare unperturbed SFNO even produce
+  # valid forecasts consistently across the year?
+  perturbation_book_ic_robustness:
+    cmd: >-
+      MPLBACKEND=Agg PYTHONPATH=$(pwd) uv run jupytext --to notebook --execute
+      --set-kernel e2s-gpu
+      --output book/notebooks/11_perturbation_ic_robustness.ipynb
+      pipeline/perturbation/03_ic_robustness.py &&
+      uv run python pipeline/_strip_jupytext_metadata.py
+      book/notebooks/11_perturbation_ic_robustness.ipynb
+    deps:
+      - pipeline/perturbation/03_ic_robustness.py
+      - pipeline/_strip_jupytext_metadata.py
+      - output/perturbation/analysis/ic_robustness_comparison.png
+      - output/perturbation/metrics/ic_robustness_winter_bounds.csv
+      - output/perturbation/metrics/ic_robustness_spring_bounds.csv
+      - output/perturbation/metrics/ic_robustness_summer_bounds.csv
+      - output/perturbation/metrics/ic_robustness_autumn_bounds.csv
+    outs:
+      - book/notebooks/11_perturbation_ic_robustness.ipynb:
+          cache: false
+
   perturbation_book_overview:
     cmd: >-
       MPLBACKEND=Agg PYTHONPATH=$(pwd) uv run jupytext --to notebook --execute
       --set-kernel e2s-gpu
-      --output book/notebooks/11_perturbation_sweep.ipynb
-      pipeline/perturbation/03_forecast_overview.py &&
+      --output book/notebooks/12_perturbation_sweep.ipynb
+      pipeline/perturbation/04_forecast_overview.py &&
       uv run python pipeline/_strip_jupytext_metadata.py
-      book/notebooks/11_perturbation_sweep.ipynb
+      book/notebooks/12_perturbation_sweep.ipynb
     deps:
-      - pipeline/perturbation/03_forecast_overview.py
+      - pipeline/perturbation/04_forecast_overview.py
       - pipeline/_strip_jupytext_metadata.py
       - output/perturbation/metrics/zero_bounds.csv
       - output/perturbation/metrics/brown_0.05_bounds.csv
       - output/perturbation/metrics/brown_0.01_bounds.csv
       - output/perturbation/metrics/brown_0.002_bounds.csv
-      - output/perturbation/metrics/gaussian_0.05_bounds.csv
+      - output/perturbation/metrics/z500_brown_0.05_bounds.csv
+      - output/perturbation/metrics/z500_brown_0.01_bounds.csv
+      - output/perturbation/metrics/z500_brown_0.002_bounds.csv
       - output/perturbation/metrics/bred_vector_bounds.csv
     outs:
-      - book/notebooks/11_perturbation_sweep.ipynb:
+      - book/notebooks/12_perturbation_sweep.ipynb:
           cache: false
 
   # One stage per perturbation config, each its own individually-authored
-  # script (pipeline/perturbation/04_config_zero.py etc. - see that
+  # script (pipeline/perturbation/05_config_zero.py etc. - see that
   # file's header comment for why this isn't one shared template: MyST
   # only parses *static* markdown cells for page titles/figures, not a
   # code cell's dynamic display(Markdown(...)) output).
@@ -302,12 +329,12 @@ stages:
     cmd: >-
       MPLBACKEND=Agg PYTHONPATH=$(pwd) uv run jupytext --to notebook --execute
       --set-kernel e2s-gpu
-      --output book/notebooks/12_perturbation_zero.ipynb
-      pipeline/perturbation/04_config_zero.py &&
+      --output book/notebooks/13_perturbation_zero.ipynb
+      pipeline/perturbation/05_config_zero.py &&
       uv run python pipeline/_strip_jupytext_metadata.py
-      book/notebooks/12_perturbation_zero.ipynb
+      book/notebooks/13_perturbation_zero.ipynb
     deps:
-      - pipeline/perturbation/04_config_zero.py
+      - pipeline/perturbation/05_config_zero.py
       - pipeline/_strip_jupytext_metadata.py
       - output/perturbation/analysis/zero_dashboard.png
       - output/perturbation/analysis/zero_standalone_heatmap.png
@@ -316,95 +343,133 @@ stages:
       - output/perturbation/analysis/zero_meteogram_t2m_munich.png
       - output/perturbation/analysis/zero_meteogram_wind10m_munich.png
     outs:
-      - book/notebooks/12_perturbation_zero.ipynb:
+      - book/notebooks/13_perturbation_zero.ipynb:
           cache: false
 
   perturbation_book_brown_005:
     cmd: >-
       MPLBACKEND=Agg PYTHONPATH=$(pwd) uv run jupytext --to notebook --execute
       --set-kernel e2s-gpu
-      --output book/notebooks/13_perturbation_brown_0.05.ipynb
-      pipeline/perturbation/05_config_brown_005.py &&
+      --output book/notebooks/14_perturbation_brown_0.05.ipynb
+      pipeline/perturbation/06_config_brown_005.py &&
       uv run python pipeline/_strip_jupytext_metadata.py
-      book/notebooks/13_perturbation_brown_0.05.ipynb
+      book/notebooks/14_perturbation_brown_0.05.ipynb
     deps:
-      - pipeline/perturbation/05_config_brown_005.py
+      - pipeline/perturbation/06_config_brown_005.py
       - pipeline/_strip_jupytext_metadata.py
       - output/perturbation/analysis/brown_0.05_dashboard.png
       - output/perturbation/analysis/brown_0.05_mean_std.gif
       - output/perturbation/analysis/brown_0.05_meteogram_t2m_munich.png
       - output/perturbation/analysis/brown_0.05_meteogram_wind10m_munich.png
     outs:
-      - book/notebooks/13_perturbation_brown_0.05.ipynb:
+      - book/notebooks/14_perturbation_brown_0.05.ipynb:
           cache: false
 
   perturbation_book_brown_001:
     cmd: >-
       MPLBACKEND=Agg PYTHONPATH=$(pwd) uv run jupytext --to notebook --execute
       --set-kernel e2s-gpu
-      --output book/notebooks/14_perturbation_brown_0.01.ipynb
-      pipeline/perturbation/06_config_brown_001.py &&
+      --output book/notebooks/15_perturbation_brown_0.01.ipynb
+      pipeline/perturbation/07_config_brown_001.py &&
       uv run python pipeline/_strip_jupytext_metadata.py
-      book/notebooks/14_perturbation_brown_0.01.ipynb
+      book/notebooks/15_perturbation_brown_0.01.ipynb
     deps:
-      - pipeline/perturbation/06_config_brown_001.py
+      - pipeline/perturbation/07_config_brown_001.py
       - pipeline/_strip_jupytext_metadata.py
       - output/perturbation/analysis/brown_0.01_dashboard.png
       - output/perturbation/analysis/brown_0.01_mean_std.gif
       - output/perturbation/analysis/brown_0.01_meteogram_t2m_munich.png
       - output/perturbation/analysis/brown_0.01_meteogram_wind10m_munich.png
     outs:
-      - book/notebooks/14_perturbation_brown_0.01.ipynb:
+      - book/notebooks/15_perturbation_brown_0.01.ipynb:
           cache: false
 
   perturbation_book_brown_0002:
     cmd: >-
       MPLBACKEND=Agg PYTHONPATH=$(pwd) uv run jupytext --to notebook --execute
       --set-kernel e2s-gpu
-      --output book/notebooks/15_perturbation_brown_0.002.ipynb
-      pipeline/perturbation/07_config_brown_0002.py &&
+      --output book/notebooks/16_perturbation_brown_0.002.ipynb
+      pipeline/perturbation/08_config_brown_0002.py &&
       uv run python pipeline/_strip_jupytext_metadata.py
-      book/notebooks/15_perturbation_brown_0.002.ipynb
+      book/notebooks/16_perturbation_brown_0.002.ipynb
     deps:
-      - pipeline/perturbation/07_config_brown_0002.py
+      - pipeline/perturbation/08_config_brown_0002.py
       - pipeline/_strip_jupytext_metadata.py
       - output/perturbation/analysis/brown_0.002_dashboard.png
       - output/perturbation/analysis/brown_0.002_mean_std.gif
       - output/perturbation/analysis/brown_0.002_meteogram_t2m_munich.png
       - output/perturbation/analysis/brown_0.002_meteogram_wind10m_munich.png
     outs:
-      - book/notebooks/15_perturbation_brown_0.002.ipynb:
+      - book/notebooks/16_perturbation_brown_0.002.ipynb:
           cache: false
 
-  perturbation_book_gaussian_005:
+  perturbation_book_z500_brown_005:
     cmd: >-
       MPLBACKEND=Agg PYTHONPATH=$(pwd) uv run jupytext --to notebook --execute
       --set-kernel e2s-gpu
-      --output book/notebooks/16_perturbation_gaussian_0.05.ipynb
-      pipeline/perturbation/08_config_gaussian_005.py &&
+      --output book/notebooks/17_perturbation_z500_brown_0.05.ipynb
+      pipeline/perturbation/09_config_z500_brown_005.py &&
       uv run python pipeline/_strip_jupytext_metadata.py
-      book/notebooks/16_perturbation_gaussian_0.05.ipynb
+      book/notebooks/17_perturbation_z500_brown_0.05.ipynb
     deps:
-      - pipeline/perturbation/08_config_gaussian_005.py
+      - pipeline/perturbation/09_config_z500_brown_005.py
       - pipeline/_strip_jupytext_metadata.py
-      - output/perturbation/analysis/gaussian_0.05_dashboard.png
-      - output/perturbation/analysis/gaussian_0.05_mean_std.gif
-      - output/perturbation/analysis/gaussian_0.05_meteogram_t2m_munich.png
-      - output/perturbation/analysis/gaussian_0.05_meteogram_wind10m_munich.png
+      - output/perturbation/analysis/z500_brown_0.05_dashboard.png
+      - output/perturbation/analysis/z500_brown_0.05_mean_std.gif
+      - output/perturbation/analysis/z500_brown_0.05_meteogram_t2m_munich.png
+      - output/perturbation/analysis/z500_brown_0.05_meteogram_wind10m_munich.png
     outs:
-      - book/notebooks/16_perturbation_gaussian_0.05.ipynb:
+      - book/notebooks/17_perturbation_z500_brown_0.05.ipynb:
+          cache: false
+
+  perturbation_book_z500_brown_001:
+    cmd: >-
+      MPLBACKEND=Agg PYTHONPATH=$(pwd) uv run jupytext --to notebook --execute
+      --set-kernel e2s-gpu
+      --output book/notebooks/18_perturbation_z500_brown_0.01.ipynb
+      pipeline/perturbation/10_config_z500_brown_001.py &&
+      uv run python pipeline/_strip_jupytext_metadata.py
+      book/notebooks/18_perturbation_z500_brown_0.01.ipynb
+    deps:
+      - pipeline/perturbation/10_config_z500_brown_001.py
+      - pipeline/_strip_jupytext_metadata.py
+      - output/perturbation/analysis/z500_brown_0.01_dashboard.png
+      - output/perturbation/analysis/z500_brown_0.01_mean_std.gif
+      - output/perturbation/analysis/z500_brown_0.01_meteogram_t2m_munich.png
+      - output/perturbation/analysis/z500_brown_0.01_meteogram_wind10m_munich.png
+    outs:
+      - book/notebooks/18_perturbation_z500_brown_0.01.ipynb:
+          cache: false
+
+  perturbation_book_z500_brown_0002:
+    cmd: >-
+      MPLBACKEND=Agg PYTHONPATH=$(pwd) uv run jupytext --to notebook --execute
+      --set-kernel e2s-gpu
+      --output book/notebooks/19_perturbation_z500_brown_0.002.ipynb
+      pipeline/perturbation/11_config_z500_brown_0002.py &&
+      uv run python pipeline/_strip_jupytext_metadata.py
+      book/notebooks/19_perturbation_z500_brown_0.002.ipynb
+    deps:
+      - pipeline/perturbation/11_config_z500_brown_0002.py
+      - pipeline/_strip_jupytext_metadata.py
+      - output/perturbation/analysis/z500_brown_0.002_dashboard.png
+      - output/perturbation/analysis/z500_brown_0.002_mean_std.gif
+      - output/perturbation/analysis/z500_brown_0.002_meteogram_t2m_munich.png
+      - output/perturbation/analysis/z500_brown_0.002_meteogram_wind10m_munich.png
+    outs:
+      - book/notebooks/19_perturbation_z500_brown_0.002.ipynb:
           cache: false
 
   perturbation_book_bred_vector:
     cmd: >-
       MPLBACKEND=Agg PYTHONPATH=$(pwd) uv run jupytext --to notebook --execute
       --set-kernel e2s-gpu
-      --output book/notebooks/17_perturbation_bred_vector.ipynb
-      pipeline/perturbation/09_config_bred_vector.py &&
+      --output book/notebooks/20_perturbation_bred_vector.ipynb
+      pipeline/perturbation/12_config_bred_vector.py &&
       uv run python pipeline/_strip_jupytext_metadata.py
-      book/notebooks/17_perturbation_bred_vector.ipynb
+      book/notebooks/20_perturbation_bred_vector.ipynb
     deps:
-      - pipeline/perturbation/09_config_bred_vector.py
+      - pipeline/perturbation/12_config_bred_vector.py
       - pipeline/_strip_jupytext_metadata.py
       - output/perturbation/analysis/bred_vector_dashboard.png
       - output/perturbation/analysis/bred_vector_standalone_heatmap.png
@@ -413,43 +478,5 @@ stages:
       - output/perturbation/analysis/bred_vector_meteogram_t2m_munich.png
       - output/perturbation/analysis/bred_vector_meteogram_wind10m_munich.png
     outs:
-      - book/notebooks/17_perturbation_bred_vector.ipynb:
-          cache: false
-
-  perturbation_book_z500_brown_200:
-    cmd: >-
-      MPLBACKEND=Agg PYTHONPATH=$(pwd) uv run jupytext --to notebook --execute
-      --set-kernel e2s-gpu
-      --output book/notebooks/18_perturbation_z500_brown_200.ipynb
-      pipeline/perturbation/10_config_z500_brown_200.py &&
-      uv run python pipeline/_strip_jupytext_metadata.py
-      book/notebooks/18_perturbation_z500_brown_200.ipynb
-    deps:
-      - pipeline/perturbation/10_config_z500_brown_200.py
-      - pipeline/_strip_jupytext_metadata.py
-      - output/perturbation/analysis/z500_brown_200_dashboard.png
-      - output/perturbation/analysis/z500_brown_200_mean_std.gif
-      - output/perturbation/analysis/z500_brown_200_meteogram_t2m_munich.png
-      - output/perturbation/analysis/z500_brown_200_meteogram_wind10m_munich.png
-    outs:
-      - book/notebooks/18_perturbation_z500_brown_200.ipynb:
-          cache: false
-
-  perturbation_book_robustness_season:
-    cmd: >-
-      MPLBACKEND=Agg PYTHONPATH=$(pwd) uv run jupytext --to notebook --execute
-      --set-kernel e2s-gpu
-      --output book/notebooks/19_perturbation_robustness_season.ipynb
-      pipeline/perturbation/11_robustness_season.py &&
-      uv run python pipeline/_strip_jupytext_metadata.py
-      book/notebooks/19_perturbation_robustness_season.ipynb
-    deps:
-      - pipeline/perturbation/11_robustness_season.py
-      - pipeline/_strip_jupytext_metadata.py
-      - output/perturbation/metrics/zero_bounds.csv
-      - output/perturbation/metrics/zero_winter_bounds.csv
-      - output/perturbation/metrics/bred_vector_bounds.csv
-      - output/perturbation/metrics/bred_vector_winter_bounds.csv
-    outs:
-      - book/notebooks/19_perturbation_robustness_season.ipynb:
+      - book/notebooks/20_perturbation_bred_vector.ipynb:
           cache: false

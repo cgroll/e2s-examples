@@ -20,12 +20,13 @@ Reference: https://arxiv.org/abs/2410.18904
 import numpy as np
 
 from earth2studio.models.px import SFNO, InterpModAFNO
-from earth2studio.data import GFS
+from earth2studio.data import GFS, fetch_data
 from earth2studio.io import ZarrBackend
 from earth2studio.run import ensemble as run_ensemble
-from earth2studio.perturbation import Brown
+from earth2studio.utils.time import to_time_array
 
 from e2s.paths import ProjPaths
+from e2s.perturbation import ScaledBrownPerturbation, compute_variable_scales
 
 paths = ProjPaths()
 paths.ensure_directories()
@@ -97,7 +98,26 @@ io = ZarrBackend(str(zarr_path))
 # highlight color either, since there was no box area to color). Brown
 # noise on the IC is what actually creates ensemble spread for a
 # deterministic base model.
-perturbation = Brown(noise_amplitude=0.05)
+#
+# This used to be a flat Brown(noise_amplitude=0.05) - the exact
+# combination that motivated pipeline/perturbation/01_run.py's whole
+# sweep in the first place: 0.05 applied identically to all 73 variables
+# blew up bare SFNO from the very first native step (see that sweep's
+# module docstring and "Population-weighted temperature" chapter for the
+# original investigation). That sweep's fix was to calibrate the
+# amplitude per variable instead of using one flat number - tested at
+# intensity 0.05 in `pipeline/perturbation`'s own `brown_0.05` chapter,
+# where it produced a physically valid ensemble with real spread. Reused
+# here via e2s.perturbation (the same module that sweep uses), at the
+# same 0.05 intensity, calibrated against this run's own initial
+# condition rather than a fixed table.
+ic_time = to_time_array([START_DATE])
+x0, coords0 = fetch_data(
+    source=data, time=ic_time, variable=model.input_coords()["variable"],
+    lead_time=model.input_coords()["lead_time"], device="cpu",
+)
+variable_scales = compute_variable_scales(x0, coords0)
+perturbation = ScaledBrownPerturbation(variable_scales, intensity=0.05)
 
 # 5. Execute ensemble forecast at 1h resolution
 print("Running SFNO + InterpModAFNO ensemble on GPU...")
