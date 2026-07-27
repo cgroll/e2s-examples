@@ -46,10 +46,17 @@ exact bounds table with zero violations - see
 pipeline/ensemble/02_validate.py). A single-bit gate can't distinguish
 that baseline idiosyncrasy from genuine catastrophic divergence. So
 instead every member runs its full rollout regardless, and every step's
-per-variable bounds metrics (violating_fraction, min, max - same schema
-as 02_validate.py's build_standalone_variable_table) are written to a
-CSV per config. Which members/steps to treat as "blown up" is a
-post-hoc analysis question (02_analyse.py), not a during-inference one.
+metrics are written to CSVs per config: per-variable bounds
+(violating_fraction, min, max - same schema as 02_validate.py's
+build_standalone_variable_table), cross-variable z-level ordering
+consistency (same schema as build_cross_variable_consistency_table - a
+field can stay within its own bounds while its ordering relative to
+neighboring levels still inverts, which the bounds check alone can't
+see), and global-mean timeseries (t2m/msl/sp/tcwv/z500/kinetic energy,
+enough to reconstruct 02_validate.py's cross-*time* checks - step-jump
+limits, mass drift, KE growth - post-hoc). Which members/steps to treat
+as "blown up" is a post-hoc analysis question (02_analyse.py), not a
+during-inference one.
 
 Member 0 is always run with Zero() perturbation regardless of config - a
 config-agnostic control trajectory (SFNO is deterministic without
@@ -62,6 +69,8 @@ deliberately left out of this first pass - all five configs below are
 IC-only. Can be added later following the same manual-loop pattern if
 the IC-only sweep turns out inconclusive.
 """
+
+import re
 
 import numpy as np
 import pandas as pd
@@ -123,6 +132,19 @@ data = GFS()
 # regex matching on every single step.
 VAR_BOUNDS = {name: bounds_for(name)[0] for name in model.input_coords()["variable"]}
 
+# Geopotential pressure levels, ascending by pressure (= descending by
+# altitude) - z50 is the highest-altitude level, z1000 the lowest. Used
+# for the cross-variable consistency check below: z at a given level must
+# be less than z at the next-lower pressure (next-higher altitude) level
+# almost everywhere, same convention as pipeline/ensemble/02_validate.py's
+# CONSISTENCY_PREFIXES=["z"] check (there computed post-hoc from a saved
+# zarr; here computed live per step, since the full per-level fields
+# aren't otherwise persisted - only z500 is in STORED_VARIABLES).
+Z_LEVELS = sorted(
+    int(m.group(1)) for name in model.input_coords()["variable"]
+    if (m := re.match(r"^z(\d+)$", name))
+)
+
 # See module docstring for why brown_0.05 (earth2studio's own default
 # amplitude, and downscaling/01_run.py's current choice) is deliberately
 # included here even though we already know it breaks SFNO+InterpModAFNO.
@@ -136,11 +158,25 @@ CONFIGS = {
 
 
 def nae_crop_masks(lat, lon):
-    """Boolean masks selecting the NAE box on SFNO's native grid. Lon is
-    0..360 on this grid, and -80..40 straddles the 0/360 seam (i.e. maps
-    to the union of 280..360 and 0..40), so a plain min/max slice would
-    silently select the wrong (complementary) region - normalize to
-    -180..180 first instead."""
+    """Boolean masks selecting the NAE box on SFNO's native 0..360 grid.
+    Lon is 0..360 here, and -80..40 straddles the 0/360 seam (maps to the
+    union of native 280..360 and 0..40) - normalize to -180..180 before
+    comparing, or a plain min/max slice would silently select the wrong
+    (complementary) region.
+
+    Deliberately kept in natural ascending storage order (280..360 comes
+    *after* 0..40 in the stored coordinate, not before) rather than
+    reordered to be geographically contiguous: xarray requires a
+    monotonic coordinate for .sel(method="nearest") (used by the Munich
+    meteograms below), and 0 < 40 < 280 < 360 satisfies that, even though
+    it isn't geographically contiguous. An earlier version of this
+    function reordered the stored coordinate to fix that non-contiguity -
+    which broke .sel() with a "must be monotonic" error, and also only
+    half-fixed the actual problem (see 02_analyse.py's
+    _geographic_lon_order): pcolormesh renders consecutive array entries
+    as adjacent, so plotting this array in its stored (ascending but
+    seam-split) order draws one giant quad across the 240 degree gap - a
+    plot-time reordering, not a storage-time one, is the correct fix."""
     lat_mask = (lat >= NAE_LAT_MIN) & (lat <= NAE_LAT_MAX)
     lon_pm180 = np.where(lon > 180, lon - 360, lon)
     lon_mask = (lon_pm180 >= NAE_LON_MIN) & (lon_pm180 <= NAE_LON_MAX)
@@ -183,6 +219,41 @@ def bounds_metrics_rows(x, coords, config_name, member_id, step, lead_time_hours
             "n_bad_points": n_bad,
             "n_total_points": n_total,
             "violating_fraction": n_bad / n_total,
+        })
+    return rows
+
+
+def cross_variable_metrics_rows(x, coords, config_name, member_id, step, lead_time_hours_val):
+    """Cross-variable (z-level ordering) consistency for one (config,
+    member, step) - same check and schema as pipeline/ensemble/
+    02_validate.py's build_cross_variable_consistency_table: for each
+    pair of adjacent geopotential levels, the higher-altitude (lower-
+    pressure) level must have the larger z value almost everywhere. This
+    is a genuinely different failure mode than bounds_metrics_rows above:
+    a field can stay within its own physical bounds at every level while
+    the levels' *relative order* still inverts (e.g. z500 dips below
+    z700), which a per-variable bounds check alone can't see."""
+    var_names = list(coords["variable"])
+    var_axis = list(coords.keys()).index("variable")
+
+    rows = []
+    for p_low, p_high in zip(Z_LEVELS, Z_LEVELS[1:]):
+        var_low, var_high = f"z{p_low}", f"z{p_high}"
+        lower = x.select(var_axis, var_names.index(var_low))
+        higher = x.select(var_axis, var_names.index(var_high))
+        n_total = lower.numel()
+        n_violating = int((lower <= higher).sum().item())
+        rows.append({
+            "config": config_name,
+            "member": member_id,
+            "step": step,
+            "lead_time_hours": lead_time_hours_val,
+            "check": f"{var_low}_gt_{var_high}",
+            "var_low": var_low,
+            "var_high": var_high,
+            "n_violating_points": n_violating,
+            "n_total_points": n_total,
+            "violating_fraction": n_violating / n_total,
         })
     return rows
 
@@ -301,6 +372,7 @@ def run_config(name, cfg_perturbation):
 
     lead_time_hours_out = (lead_time_out / np.timedelta64(1, "h")).astype(float)
     bounds_rows = []
+    cross_variable_rows = []
     timeseries_rows = []
 
     for member_id in range(N_ENSEMBLE):
@@ -314,6 +386,7 @@ def run_config(name, cfg_perturbation):
         x, coords = perturbation(x, coords)  # single IC-only perturbation, mirrors run.ensemble()
 
         bounds_rows += bounds_metrics_rows(x, coords, name, member_id, 0, lead_time_hours_out[0])
+        cross_variable_rows += cross_variable_metrics_rows(x, coords, name, member_id, 0, lead_time_hours_out[0])
         timeseries_rows.append(global_mean_metrics_row(x, coords, name, member_id, 0, lead_time_hours_out[0]))
         x_store, coords_store = select_stored(x, coords, lat_mask, lon_mask)
         io.write(*split_coords(x_store, coords_store))
@@ -322,6 +395,7 @@ def run_config(name, cfg_perturbation):
             x, coords = model(x, coords)  # one autoregressive step, always taken regardless of prior violations
             rows = bounds_metrics_rows(x, coords, name, member_id, step, lead_time_hours_out[step])
             bounds_rows += rows
+            cross_variable_rows += cross_variable_metrics_rows(x, coords, name, member_id, step, lead_time_hours_out[step])
             timeseries_rows.append(global_mean_metrics_row(x, coords, name, member_id, step, lead_time_hours_out[step]))
             worst = max(rows, key=lambda r: r["violating_fraction"])
             if worst["violating_fraction"] > 0:
@@ -333,11 +407,13 @@ def run_config(name, cfg_perturbation):
     output_path = paths.perturbation_metrics_path
     output_path.mkdir(parents=True, exist_ok=True)
     bounds_path = output_path / f"{name}_bounds.csv"
+    cross_variable_path = output_path / f"{name}_cross_variable.csv"
     timeseries_path = output_path / f"{name}_timeseries.csv"
     pd.DataFrame(bounds_rows).to_csv(bounds_path, index=False)
+    pd.DataFrame(cross_variable_rows).to_csv(cross_variable_path, index=False)
     pd.DataFrame(timeseries_rows).to_csv(timeseries_path, index=False)
     print(f"Saved '{name}' field data to {zarr_path}, bounds metrics to {bounds_path}, "
-          f"global-mean timeseries to {timeseries_path}")
+          f"cross-variable metrics to {cross_variable_path}, global-mean timeseries to {timeseries_path}")
 
 
 for config_name, perturbation in CONFIGS.items():

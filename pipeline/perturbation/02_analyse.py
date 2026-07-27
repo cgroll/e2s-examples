@@ -1,7 +1,12 @@
 """Analyse the SFNO IC-perturbation sweep from 01_run.py: per-config
-ensemble mean/std gifs and Munich meteograms over the NAE region, plus a
-blow-up summary built from the per-step physical-bounds violation
+ensemble mean/std gifs, Munich meteograms, and a diagnostics dashboard
+built from the per-step bounds, cross-variable, and global-mean-timeseries
 metrics 01_run.py wrote alongside the field data.
+
+The dashboard is deliberately one full-size figure per config (five
+stacked panels), not five configs squeezed into one row of subplots -
+each panel needs enough width to actually read, and cramming all five
+configs side by side left everything too small to make out.
 """
 
 import cartopy.crs as ccrs
@@ -31,9 +36,19 @@ CONFIG_NAMES = ["zero", "brown_0.05", "brown_0.01", "brown_0.002", "gaussian_0.0
 COLOR_MEMBER = "#6E7B8B"
 COLOR_MEAN = "#1F5C99"
 COLOR_CONTROL = "#C9622A"  # member 0: always Zero() regardless of config - see 01_run.py
+COLOR_VARIABLE_PALETTE = [
+    "#1F5C99", "#C9622A", "#2E8B57", "#6A4C93", "#D64545",
+    "#E68A2E", "#4C78A8", "#54A24B", "#B279A2", "#9D755D",
+]
 
 GIF_FRAME_DURATION = 0.3
 GIF_DPI = 100
+
+# Same thresholds pipeline/ensemble/02_validate.py uses for FCN3's
+# cross-time checks - reused here as reference lines, not gates (see
+# 01_run.py's docstring on why nothing here gates during inference).
+KE_GROWTH_FACTOR = 5.0
+MASS_DRIFT_TOLERANCE = 0.01
 
 
 def load_config(name):
@@ -41,9 +56,12 @@ def load_config(name):
     if not zarr_path.exists():
         return None
     ds = xr.open_zarr(zarr_path)
-    bounds_path = metrics_dir / f"{name}_bounds.csv"
-    bounds_df = pd.read_csv(bounds_path) if bounds_path.exists() else pd.DataFrame()
-    return ds, bounds_df
+
+    def read_csv(suffix):
+        path = metrics_dir / f"{name}_{suffix}.csv"
+        return pd.read_csv(path) if path.exists() else pd.DataFrame()
+
+    return ds, read_csv("bounds"), read_csv("cross_variable"), read_csv("timeseries")
 
 
 def wind_speed(ds):
@@ -71,13 +89,32 @@ def _robust_range(arr):
     return float(lo), float(hi) if hi > lo else float(lo) + 1e-6
 
 
+def _geographic_lon_order(lon):
+    """Plot-time-only reordering (plain numpy, never applied to the
+    source Dataset/its coordinate index) of a lon array that's
+    numerically ascending but geographically split by the 0/360 seam -
+    NAE's stored lon is [0...40, 280...360), ascending (required for
+    xarray's .sel(method="nearest"), used by the Munich meteograms below)
+    but not geographically contiguous. pcolormesh draws consecutive array
+    entries as adjacent, so plotting that stored order draws one giant
+    quad spanning the 240 degree gap between index "40" and index "280" -
+    the vertical seam bug. Returns (pm180_lon_sorted, sort_order); apply
+    sort_order to the data's lon axis before plotting pm180_lon_sorted.
+    See 01_run.py's nae_crop_masks docstring for why this is fixed here,
+    at plot time, rather than in storage order."""
+    lon_pm180 = np.where(lon > 180, lon - 360, lon)
+    order = np.argsort(lon_pm180)
+    return lon_pm180[order], order
+
+
 # ---------------------------------------------------------------------------
 # Per-config mean/std gif: 3 fields (t2m/wind10m/z500) x 2 (mean, std)
 # ---------------------------------------------------------------------------
 def render_mean_std_gif(ds, config_name, out_path):
     lon_name = next(n for n in ("lon", "longitude") if n in ds.coords)
     lat_name = next(n for n in ("lat", "latitude") if n in ds.coords)
-    lon, lat = ds[lon_name].values, ds[lat_name].values
+    lat = ds[lat_name].values
+    lon, lon_order = _geographic_lon_order(ds[lon_name].values)
     n_steps = ds.sizes["lead_time"]
 
     panels = []
@@ -103,7 +140,7 @@ def render_mean_std_gif(ds, config_name, out_path):
             ax.set_extent(NAE_EXTENT, crs=ccrs.PlateCarree())
             ax.coastlines(resolution="50m", linewidth=0.6, color="#444444")
             ax.add_feature(cfeature.BORDERS, linewidth=0.5, edgecolor="#444444")
-            data0 = np.nan_to_num(arr.isel(lead_time=0).values, nan=clo)
+            data0 = np.nan_to_num(arr.isel(lead_time=0).values[:, lon_order], nan=clo)
             mesh = ax.pcolormesh(lon, lat, data0, transform=ccrs.PlateCarree(), cmap=cm, vmin=clo, vmax=chi, shading="auto")
             fig.colorbar(mesh, ax=ax, orientation="vertical", pad=0.02, shrink=0.8)
             ax.set_title(title, fontsize=9)
@@ -112,7 +149,7 @@ def render_mean_std_gif(ds, config_name, out_path):
     frames = []
     for step in range(n_steps):
         for mesh, arr, clo in meshes:
-            data = np.nan_to_num(arr.isel(lead_time=step).values, nan=clo)
+            data = np.nan_to_num(arr.isel(lead_time=step).values[:, lon_order], nan=clo)
             mesh.set_array(data.ravel())
         fig.suptitle(f"{config_name} - lead time step {step}", fontsize=11)
         fig.canvas.draw()
@@ -162,57 +199,126 @@ def plot_munich_meteograms(ds, config_name, out_dir):
 
 
 # ---------------------------------------------------------------------------
-# Blow-up summary: worst (max across all 73 variables) violating_fraction
-# per (config, member), over lead_time
+# Per-config diagnostics dashboard - five full-width panels answering:
+# (A) are all members affected, and is the onset immediate or gradual?
+# (B) are all variables affected, or only some?
+# (C) is it just absolute bounds, or does relative ordering break too?
+# (D/E) is energy/mass conserved over the rollout?
 # ---------------------------------------------------------------------------
-def plot_blowup_summary(all_bounds, out_path):
-    """Flat near SFNO's own ~7% tcwv baseline (see 01_run.py's docstring)
-    means "no genuine blow-up"; a sharp rise toward 1.0 means the member
-    diverged. member 0 (control, always Zero()) should sit at that same
-    baseline in every panel - if it doesn't, something upstream broke."""
-    names = [n for n in CONFIG_NAMES if n in all_bounds and not all_bounds[n].empty]
-    if not names:
-        print("[WARN] No bounds data found - skipping blow-up summary.")
+def _member_lines(ax, df, value_col, group_cols=("member", "step", "lead_time_hours"), agg="max"):
+    """One line per member, control (member 0) highlighted - the shared
+    layout for panels A and C below."""
+    per_member = df.groupby(list(group_cols))[value_col].agg(agg).reset_index()
+    for member_id, member_df in per_member.groupby("member"):
+        member_df = member_df.sort_values("lead_time_hours")
+        is_control = member_id == 0
+        ax.plot(
+            member_df["lead_time_hours"], member_df[value_col],
+            color=COLOR_CONTROL if is_control else COLOR_MEMBER,
+            linewidth=2.0 if is_control else 1.3, alpha=1.0 if is_control else 0.75,
+            label="control (member 0)" if is_control else f"member {member_id}",
+        )
+
+
+def plot_config_dashboard(name, bounds_df, cross_variable_df, timeseries_df, out_path):
+    if bounds_df.empty:
+        print(f"[WARN] '{name}': no bounds data - skipping dashboard.")
         return
 
-    fig, axes = plt.subplots(1, len(names), figsize=(4.2 * len(names), 4.2), sharey=True)
-    if len(names) == 1:
-        axes = [axes]
+    fig, axes = plt.subplots(5, 1, figsize=(14, 22))
+    ax_bounds, ax_vars, ax_cross, ax_ke, ax_mass = axes
 
-    for ax, name in zip(axes, names):
-        df = all_bounds[name]
-        worst = df.groupby(["member", "step", "lead_time_hours"])["violating_fraction"].max().reset_index()
-        for member_id, member_df in worst.groupby("member"):
-            member_df = member_df.sort_values("lead_time_hours")
-            is_control = member_id == 0
-            ax.plot(
-                member_df["lead_time_hours"], member_df["violating_fraction"],
-                color=COLOR_CONTROL if is_control else COLOR_MEMBER,
-                linewidth=1.8 if is_control else 1.2, alpha=1.0 if is_control else 0.7,
-                label="control (member 0)" if is_control else None,
+    # --- A: per-member worst-variable violating_fraction over time -----
+    _member_lines(ax_bounds, bounds_df, "violating_fraction")
+    ax_bounds.set_title(f"{name}  -  (A) worst-variable bounds-violating fraction, per member")
+    ax_bounds.set_ylabel("Violating fraction")
+    ax_bounds.set_ylim(-0.02, 1.02)
+    ax_bounds.legend(loc="upper left", fontsize=8, ncol=2)
+
+    # --- B: per-variable breakdown, perturbed members only -------------
+    perturbed = bounds_df[bounds_df["member"] != 0]
+    if not perturbed.empty:
+        per_var = perturbed.groupby(["variable", "step", "lead_time_hours"])["violating_fraction"].mean().reset_index()
+        final_step = per_var["step"].max()
+        top_vars = (
+            per_var[per_var["step"] == final_step]
+            .sort_values("violating_fraction", ascending=False)["variable"].head(10).tolist()
+        )
+        for i, var in enumerate(top_vars):
+            var_df = per_var[per_var["variable"] == var].sort_values("lead_time_hours")
+            ax_vars.plot(
+                var_df["lead_time_hours"], var_df["violating_fraction"],
+                color=COLOR_VARIABLE_PALETTE[i % len(COLOR_VARIABLE_PALETTE)], linewidth=1.5, label=var,
             )
-        ax.set_title(name, fontsize=10)
-        ax.set_xlabel("Lead time (h)")
-        ax.set_ylim(-0.02, 1.02)
+    ax_vars.set_title("(B) top-10 most-affected variables (mean violating fraction across perturbed members)")
+    ax_vars.set_ylabel("Violating fraction")
+    ax_vars.set_ylim(-0.02, 1.02)
+    ax_vars.legend(loc="upper left", fontsize=7, ncol=5)
+
+    # --- C: cross-variable (z-level ordering) consistency --------------
+    if not cross_variable_df.empty:
+        _member_lines(ax_cross, cross_variable_df, "violating_fraction")
+        ax_cross.legend(loc="upper left", fontsize=8, ncol=2)
+    ax_cross.set_title("(C) z-level ordering violations (worst adjacent pair, per member) - not just absolute bounds")
+    ax_cross.set_ylabel("Violating fraction")
+    ax_cross.set_ylim(-0.02, 1.02)
+
+    # --- D/E: energy and mass conservation vs. step 0 -------------------
+    if not timeseries_df.empty and "global_mean_kinetic_energy" in timeseries_df:
+        for member_id, member_df in timeseries_df.groupby("member"):
+            member_df = member_df.sort_values("lead_time_hours")
+            ke0 = member_df["global_mean_kinetic_energy"].iloc[0]
+            ratio = member_df["global_mean_kinetic_energy"] / ke0 if ke0 else np.nan
+            is_control = member_id == 0
+            ax_ke.plot(
+                member_df["lead_time_hours"], ratio,
+                color=COLOR_CONTROL if is_control else COLOR_MEMBER,
+                linewidth=2.0 if is_control else 1.3, alpha=1.0 if is_control else 0.75,
+            )
+        ax_ke.axhline(KE_GROWTH_FACTOR, color="#D64545", linestyle="--", linewidth=1.0,
+                       label=f"02_validate.py's KE_GROWTH_FACTOR ({KE_GROWTH_FACTOR}x)")
+        # Log scale: a genuinely blown-up member can reach ratios of 1e4-1e5x,
+        # which would otherwise squash the 5x reference line down to
+        # indistinguishable-from-zero on a linear axis.
+        ax_ke.set_yscale("log")
+        ax_ke.legend(loc="upper left", fontsize=8)
+
+        for member_id, member_df in timeseries_df.groupby("member"):
+            member_df = member_df.sort_values("lead_time_hours")
+            msl0 = member_df["global_mean_msl"].iloc[0]
+            drift = (member_df["global_mean_msl"] - msl0) / msl0 if msl0 else np.nan
+            is_control = member_id == 0
+            ax_mass.plot(
+                member_df["lead_time_hours"], drift,
+                color=COLOR_CONTROL if is_control else COLOR_MEMBER,
+                linewidth=2.0 if is_control else 1.3, alpha=1.0 if is_control else 0.75,
+            )
+        ax_mass.axhline(MASS_DRIFT_TOLERANCE, color="#D64545", linestyle="--", linewidth=1.0,
+                          label=f"02_validate.py's MASS_DRIFT_TOLERANCE (+/-{MASS_DRIFT_TOLERANCE})")
+        ax_mass.axhline(-MASS_DRIFT_TOLERANCE, color="#D64545", linestyle="--", linewidth=1.0)
+        ax_mass.legend(loc="upper left", fontsize=8)
+
+    ax_ke.set_title("(D) kinetic energy vs. step 0 (ratio) - reference: FCN3's own blow-up threshold")
+    ax_ke.set_ylabel("KE ratio")
+    ax_mass.set_title("(E) mean sea-level pressure drift vs. step 0 (fractional) - reference: FCN3's own mass-conservation tolerance")
+    ax_mass.set_ylabel("Fractional drift")
+    ax_mass.set_xlabel("Lead time (hours since UTC init)")
+
+    for ax in axes:
         ax.grid(True, color="#DDDDDD", linewidth=0.6)
 
-    axes[0].set_ylabel("Worst-variable violating_fraction")
-    axes[0].legend(loc="upper left", fontsize=8)
-    fig.suptitle("Blow-up summary: worst per-variable bounds-violating fraction, per member")
     fig.tight_layout()
     fig.savefig(out_path, dpi=150)
     plt.close(fig)
 
 
 def main():
-    all_bounds = {}
     for name in CONFIG_NAMES:
         result = load_config(name)
         if result is None:
             print(f"[WARN] '{name}': no data found at {paths.perturbation_zarr_path(name)} - run 01_run.py first. Skipping.")
             continue
-        ds, bounds_df = result
-        all_bounds[name] = bounds_df
+        ds, bounds_df, cross_variable_df, timeseries_df = result
 
         print(f"Rendering mean/std gif for '{name}'...")
         render_mean_std_gif(ds, name, output_dir / f"{name}_mean_std.gif")
@@ -220,8 +326,9 @@ def main():
         print(f"Rendering Munich meteograms for '{name}'...")
         plot_munich_meteograms(ds, name, output_dir)
 
-    print("Rendering blow-up summary...")
-    plot_blowup_summary(all_bounds, output_dir / "blowup_summary.png")
+        print(f"Rendering diagnostics dashboard for '{name}'...")
+        plot_config_dashboard(name, bounds_df, cross_variable_df, timeseries_df, output_dir / f"{name}_dashboard.png")
+
     print(f"\nDone. Outputs written to {output_dir}/")
 
 

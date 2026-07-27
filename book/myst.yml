@@ -16,21 +16,26 @@ project:
       children:
         - file: notebooks/05_forecast_overview.ipynb
         - file: notebooks/06_validation_report.ipynb
-    - title: Population-weighted temperature
-      children:
-        - file: notebooks/10_germany_population_weighted.ipynb
-    - title: Temporal downscaling
-      children:
-        - file: notebooks/09_downscaling_overview.ipynb
     - title: IC perturbation sweep (SFNO)
       children:
         - file: notebooks/11_perturbation_sweep.ipynb
+        - file: notebooks/12_perturbation_zero.ipynb
+        - file: notebooks/13_perturbation_brown_0.05.ipynb
+        - file: notebooks/14_perturbation_brown_0.01.ipynb
+        - file: notebooks/15_perturbation_brown_0.002.ipynb
+        - file: notebooks/16_perturbation_gaussian_0.05.ipynb
+    - title: Population-weighted temperature
+      children:
+        - file: notebooks/10_germany_population_weighted.ipynb
     - title: Diagnostic model
       children:
         - file: notebooks/07_diagnostic_solar_radiation.ipynb
     - title: Variable subsetting
       children:
         - file: notebooks/08_variable_subset_report.ipynb
+    - title: Temporal downscaling
+      children:
+        - file: notebooks/09_downscaling_overview.ipynb
 site:
   options:
     folders: true

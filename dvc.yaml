@@ -288,11 +288,106 @@ stages:
       - output/perturbation/metrics/brown_0.01_bounds.csv
       - output/perturbation/metrics/brown_0.002_bounds.csv
       - output/perturbation/metrics/gaussian_0.05_bounds.csv
-      - output/perturbation/analysis/blowup_summary.png
-      - output/perturbation/analysis/zero_meteogram_t2m_munich.png
-      - output/perturbation/analysis/brown_0.002_meteogram_t2m_munich.png
-      - output/perturbation/analysis/zero_mean_std.gif
-      - output/perturbation/analysis/brown_0.05_mean_std.gif
     outs:
       - book/notebooks/11_perturbation_sweep.ipynb:
+          cache: false
+
+  # One standardized stage per perturbation config, same template script
+  # (pipeline/perturbation/04_config_overview.py) selected via the
+  # PERTURBATION_CONFIG env var - kept as five explicit stages rather
+  # than a loop since dvc.yaml has no native "for each", matching this
+  # project's existing convention of one stage per notebook.
+  perturbation_book_zero:
+    cmd: >-
+      PERTURBATION_CONFIG=zero MPLBACKEND=Agg PYTHONPATH=$(pwd) uv run jupytext --to notebook --execute
+      --set-kernel e2s-gpu
+      --output book/notebooks/12_perturbation_zero.ipynb
+      pipeline/perturbation/04_config_overview.py &&
+      uv run python pipeline/_strip_jupytext_metadata.py
+      book/notebooks/12_perturbation_zero.ipynb
+    deps:
+      - pipeline/perturbation/04_config_overview.py
+      - pipeline/_strip_jupytext_metadata.py
+      - output/perturbation/analysis/zero_dashboard.png
+      - output/perturbation/analysis/zero_mean_std.gif
+      - output/perturbation/analysis/zero_meteogram_t2m_munich.png
+      - output/perturbation/analysis/zero_meteogram_wind10m_munich.png
+    outs:
+      - book/notebooks/12_perturbation_zero.ipynb:
+          cache: false
+
+  perturbation_book_brown_005:
+    cmd: >-
+      PERTURBATION_CONFIG=brown_0.05 MPLBACKEND=Agg PYTHONPATH=$(pwd) uv run jupytext --to notebook --execute
+      --set-kernel e2s-gpu
+      --output book/notebooks/13_perturbation_brown_0.05.ipynb
+      pipeline/perturbation/04_config_overview.py &&
+      uv run python pipeline/_strip_jupytext_metadata.py
+      book/notebooks/13_perturbation_brown_0.05.ipynb
+    deps:
+      - pipeline/perturbation/04_config_overview.py
+      - pipeline/_strip_jupytext_metadata.py
+      - output/perturbation/analysis/brown_0.05_dashboard.png
+      - output/perturbation/analysis/brown_0.05_mean_std.gif
+      - output/perturbation/analysis/brown_0.05_meteogram_t2m_munich.png
+      - output/perturbation/analysis/brown_0.05_meteogram_wind10m_munich.png
+    outs:
+      - book/notebooks/13_perturbation_brown_0.05.ipynb:
+          cache: false
+
+  perturbation_book_brown_001:
+    cmd: >-
+      PERTURBATION_CONFIG=brown_0.01 MPLBACKEND=Agg PYTHONPATH=$(pwd) uv run jupytext --to notebook --execute
+      --set-kernel e2s-gpu
+      --output book/notebooks/14_perturbation_brown_0.01.ipynb
+      pipeline/perturbation/04_config_overview.py &&
+      uv run python pipeline/_strip_jupytext_metadata.py
+      book/notebooks/14_perturbation_brown_0.01.ipynb
+    deps:
+      - pipeline/perturbation/04_config_overview.py
+      - pipeline/_strip_jupytext_metadata.py
+      - output/perturbation/analysis/brown_0.01_dashboard.png
+      - output/perturbation/analysis/brown_0.01_mean_std.gif
+      - output/perturbation/analysis/brown_0.01_meteogram_t2m_munich.png
+      - output/perturbation/analysis/brown_0.01_meteogram_wind10m_munich.png
+    outs:
+      - book/notebooks/14_perturbation_brown_0.01.ipynb:
+          cache: false
+
+  perturbation_book_brown_0002:
+    cmd: >-
+      PERTURBATION_CONFIG=brown_0.002 MPLBACKEND=Agg PYTHONPATH=$(pwd) uv run jupytext --to notebook --execute
+      --set-kernel e2s-gpu
+      --output book/notebooks/15_perturbation_brown_0.002.ipynb
+      pipeline/perturbation/04_config_overview.py &&
+      uv run python pipeline/_strip_jupytext_metadata.py
+      book/notebooks/15_perturbation_brown_0.002.ipynb
+    deps:
+      - pipeline/perturbation/04_config_overview.py
+      - pipeline/_strip_jupytext_metadata.py
+      - output/perturbation/analysis/brown_0.002_dashboard.png
+      - output/perturbation/analysis/brown_0.002_mean_std.gif
+      - output/perturbation/analysis/brown_0.002_meteogram_t2m_munich.png
+      - output/perturbation/analysis/brown_0.002_meteogram_wind10m_munich.png
+    outs:
+      - book/notebooks/15_perturbation_brown_0.002.ipynb:
+          cache: false
+
+  perturbation_book_gaussian_005:
+    cmd: >-
+      PERTURBATION_CONFIG=gaussian_0.05 MPLBACKEND=Agg PYTHONPATH=$(pwd) uv run jupytext --to notebook --execute
+      --set-kernel e2s-gpu
+      --output book/notebooks/16_perturbation_gaussian_0.05.ipynb
+      pipeline/perturbation/04_config_overview.py &&
+      uv run python pipeline/_strip_jupytext_metadata.py
+      book/notebooks/16_perturbation_gaussian_0.05.ipynb
+    deps:
+      - pipeline/perturbation/04_config_overview.py
+      - pipeline/_strip_jupytext_metadata.py
+      - output/perturbation/analysis/gaussian_0.05_dashboard.png
+      - output/perturbation/analysis/gaussian_0.05_mean_std.gif
+      - output/perturbation/analysis/gaussian_0.05_meteogram_t2m_munich.png
+      - output/perturbation/analysis/gaussian_0.05_meteogram_wind10m_munich.png
+    outs:
+      - book/notebooks/16_perturbation_gaussian_0.05.ipynb:
           cache: false
